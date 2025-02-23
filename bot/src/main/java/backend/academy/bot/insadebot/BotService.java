@@ -5,14 +5,10 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.validation.annotation.Validated;
 
-import java.util.Arrays;
-import java.util.List;
-
 @Configuration
 @ConfigurationProperties(prefix = "bot")
 @Validated
-public class BotConfig {
-
+public class BotService {
     @NotNull
     private RateLimiting rateLimiting = new RateLimiting();
 
@@ -24,7 +20,6 @@ public class BotConfig {
         private int tokens = 20;
         private int refillDuration = 60;
 
-        // Геттеры и сеттеры
         public int getCapacity() {
             return capacity;
         }
@@ -56,9 +51,7 @@ public class BotConfig {
         private double multiplier = 2.0;
         private long increment = 1000;
         private int maxAttempts = 3;
-        private List<Integer> retryableStatusCodes = Arrays.asList(500, 502, 503, 504);
 
-        // Геттеры и сеттеры
         public String getStrategy() {
             return strategy;
         }
@@ -98,17 +91,8 @@ public class BotConfig {
         public void setMaxAttempts(int maxAttempts) {
             this.maxAttempts = maxAttempts;
         }
-
-        public List<Integer> getRetryableStatusCodes() {
-            return retryableStatusCodes;
-        }
-
-        public void setRetryableStatusCodes(List<Integer> retryableStatusCodes) {
-            this.retryableStatusCodes = retryableStatusCodes;
-        }
     }
 
-    // Геттеры и сеттеры для основного класса
     public RateLimiting getRateLimiting() {
         return rateLimiting;
     }
