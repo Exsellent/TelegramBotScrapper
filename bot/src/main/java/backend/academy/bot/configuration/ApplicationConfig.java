@@ -1,30 +1,44 @@
 package backend.academy.bot.configuration;
 
 import com.pengrad.telegrambot.TelegramBot;
-import jakarta.validation.constraints.NotEmpty;
+import jakarta.annotation.PostConstruct;
 import lombok.Getter;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.context.properties.ConfigurationProperties;
-import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.validation.annotation.Validated;
 
 @Getter
+@Slf4j
 @Validated
 @Configuration
-@EnableConfigurationProperties
 @ConfigurationProperties(prefix = "app")
 public class ApplicationConfig {
 
-    @NotEmpty(message = "Telegram token must not be empty")
+    @Value("${APP_TELEGRAM_TOKEN}")
     private String telegramToken;
+
+    @PostConstruct
+    public void validateConfig() {
+        log.info("Current working directory: {}", System.getProperty("user.dir"));
+        log.info("Attempting to read token configuration...");
+
+        if (telegramToken == null || telegramToken.trim().isEmpty()) {
+            String errorMessage = "Telegram token not configured - please ensure APP_TELEGRAM_TOKEN is set";
+            log.error(errorMessage);
+            throw new IllegalStateException(errorMessage);
+        }
+
+        log.info("Telegram token successfully loaded");
+    }
 
     @Bean
     public TelegramBot telegramBot() {
-        return new TelegramBot(telegramToken);
-    }
-
-    public void setTelegramToken(String telegramToken) {
-        this.telegramToken = telegramToken.trim();
+        log.info("Creating TelegramBot instance");
+        TelegramBot bot = new TelegramBot(telegramToken.trim());
+        log.info("TelegramBot instance created successfully");
+        return bot;
     }
 }
