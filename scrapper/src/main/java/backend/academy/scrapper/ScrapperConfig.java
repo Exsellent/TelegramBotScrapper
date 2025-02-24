@@ -5,7 +5,67 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.validation.annotation.Validated;
 
 @Validated
-@ConfigurationProperties(prefix = "app", ignoreUnknownFields = false)
-public record ScrapperConfig(@NotEmpty String githubToken, StackOverflowCredentials stackOverflow) {
-    public record StackOverflowCredentials(@NotEmpty String key, @NotEmpty String accessToken) {}
+@ConfigurationProperties(prefix = "bot")
+public class ScrapperConfig {
+
+    @NotEmpty
+    private String databaseAccessType;
+
+    @NotEmpty
+    private String githubToken;
+
+    private StackOverflowCredentials stackOverflow;
+
+    // Конструктор (обязателен для работы Spring)
+    public ScrapperConfig() {}
+
+    // Геттеры и сеттеры
+    public String getDatabaseAccessType() {
+        return databaseAccessType;
+    }
+
+    public void setDatabaseAccessType(String databaseAccessType) {
+        this.databaseAccessType = databaseAccessType;
+    }
+
+    public String getGithubToken() {
+        return githubToken;
+    }
+
+    public void setGithubToken(String githubToken) {
+        this.githubToken = githubToken;
+    }
+
+    public StackOverflowCredentials getStackOverflow() {
+        return stackOverflow;
+    }
+
+    public void setStackOverflow(StackOverflowCredentials stackOverflow) {
+        this.stackOverflow = stackOverflow;
+    }
+
+    public static class StackOverflowCredentials {
+
+        @NotEmpty
+        private String key;
+
+        @NotEmpty
+        private String accessToken;
+
+        public String getKey() {
+            return key;
+        }
+
+        public void setKey(String key) {
+            this.key = key;
+        }
+
+        public String getAccessToken() {
+            return accessToken;
+        }
+
+        public void setAccessToken(String accessToken) {
+            this.accessToken = accessToken;
+        }
+    }
 }
