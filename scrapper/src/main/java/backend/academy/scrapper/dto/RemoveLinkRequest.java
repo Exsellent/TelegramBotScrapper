@@ -1,26 +1,20 @@
 package backend.academy.scrapper.dto;
 
+import lombok.Builder;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+
+@NoArgsConstructor
+@Getter
 public class RemoveLinkRequest {
     private String link;
 
-    private RemoveLinkRequest(Builder builder) {
-        this.link = builder.link;
+    @Builder
+    public RemoveLinkRequest(String link) {
+        this.link = link;
     }
 
     public String getLink() {
         return link;
-    }
-
-    public static class Builder {
-        private String link;
-
-        public Builder link(String link) {
-            this.link = link;
-            return this;
-        }
-
-        public RemoveLinkRequest build() {
-            return new RemoveLinkRequest(this);
-        }
     }
 }

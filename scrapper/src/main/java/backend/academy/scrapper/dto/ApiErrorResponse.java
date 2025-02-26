@@ -1,16 +1,10 @@
 package backend.academy.scrapper.dto;
 
 import java.util.List;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
-import lombok.Setter;
+import lombok.*;
 
 @NoArgsConstructor
 @AllArgsConstructor
-@Getter
-@Setter
 @Builder
 public class ApiErrorResponse {
     private String description;
@@ -18,4 +12,24 @@ public class ApiErrorResponse {
     private String exceptionName;
     private String exceptionMessage;
     private List<String> stacktrace;
+
+    public String getDescription() {
+        return description;
+    }
+
+    public String getCode() {
+        return code;
+    }
+
+    public String getExceptionName() {
+        return exceptionName;
+    }
+
+    public String getExceptionMessage() {
+        return exceptionMessage;
+    }
+
+    public List<String> getStacktrace() {
+        return stacktrace;
+    }
 }

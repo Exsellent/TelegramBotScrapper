@@ -5,7 +5,7 @@
     <parent>
         <groupId>backend.academy</groupId>
         <artifactId>root</artifactId>
-        <version>${revision}</version>
+        <version>1.0.0</version>
     </parent>
 
     <artifactId>report</artifactId>
@@ -14,12 +14,12 @@
         <dependency>
             <groupId>backend.academy</groupId>
             <artifactId>bot</artifactId>
-            <version>${revision}</version>
+            <version>1.0.0</version>
         </dependency>
         <dependency>
             <groupId>backend.academy</groupId>
             <artifactId>scrapper</artifactId>
-            <version>${revision}</version>
+            <version>1.0.0</version>
         </dependency>
     </dependencies>
 

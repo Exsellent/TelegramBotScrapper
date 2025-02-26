@@ -16,12 +16,19 @@ public class InMemoryLinkRepositoryImpl implements LinkRepository {
 
     @Override
     public Link save(Link link) {
+        Optional<Link> existingLink = findByUrl(link.getUrl());
+        if (existingLink.isPresent()) {
+            // Если ссылка уже есть, возвращаем её без добавления новой копии
+            return existingLink.get();
+        }
+
         if (link.getLinkId() == null) {
             link.setLinkId(idCounter++);
         }
         storage.put(link.getLinkId(), link);
         return link;
     }
+
 
     @Override
     public void delete(Link link) {

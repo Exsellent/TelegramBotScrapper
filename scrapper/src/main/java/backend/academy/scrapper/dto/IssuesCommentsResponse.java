@@ -18,6 +18,7 @@ import lombok.ToString;
 public class IssuesCommentsResponse implements Comment {
     private String url;
     private Long id;
+    private String body; // Добавляем поле
 
     @JsonProperty("created_at")
     private OffsetDateTime createdAt;
@@ -25,7 +26,13 @@ public class IssuesCommentsResponse implements Comment {
     @JsonProperty("updated_at")
     private OffsetDateTime updatedAt;
 
-    private String body;
+    public String getBody() {
+        return body;
+    }
+
+    public Long getId() {
+        return id;
+    }
 
     @Override
     public OffsetDateTime getCreatedAt() {

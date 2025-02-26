@@ -30,37 +30,39 @@ public class StackOverflowClientImpl implements StackOverflowClient {
     public Mono<List<QuestionResponse>> fetchQuestionsInfo(List<String> questionIds) {
         String joinedQuestionIds = String.join(";", questionIds);
 
-        return webClient
-                .get()
-                .uri(uriBuilder -> uriBuilder
-                        .path("/questions/{ids}")
-                        .queryParam(SITE, STACKOVERFLOW)
-                        .build(joinedQuestionIds))
-                .retrieve()
-                .onStatus(
-                        status -> status.is4xxClientError() || status.is5xxServerError(),
-                        response -> Mono.error(new RuntimeException(API_ERROR)))
-                .bodyToMono(QuestionsApiResponse.class)
-                .map(QuestionsApiResponse::getItems)
-                .retryWhen(retrySpec);
+        Mono<List<QuestionResponse>> mono = webClient
+            .get()
+            .uri(uriBuilder -> uriBuilder
+                .path("/questions/{ids}")
+                .queryParam(SITE, STACKOVERFLOW)
+                .build(joinedQuestionIds))
+            .exchangeToMono(response -> {
+                if (response.statusCode().is4xxClientError() || response.statusCode().is5xxServerError()) {
+                    return Mono.error(new RuntimeException(API_ERROR));
+                }
+                return response.bodyToMono(QuestionsApiResponse.class)
+                    .map(QuestionsApiResponse::getItems);
+            });
+        return retrySpec != null ? mono.retryWhen(retrySpec) : mono;
     }
 
     @Override
     public Mono<List<AnswerResponse>> fetchAnswersInfo(List<String> questionIds) {
         String joinedQuestionIds = String.join(";", questionIds);
 
-        return webClient
-                .get()
-                .uri(uriBuilder -> uriBuilder
-                        .path("/questions/{id}/answers")
-                        .queryParam(SITE, STACKOVERFLOW)
-                        .build(joinedQuestionIds))
-                .retrieve()
-                .onStatus(
-                        status -> status.is4xxClientError() || status.is5xxServerError(),
-                        response -> Mono.error(new RuntimeException(API_ERROR)))
-                .bodyToMono(AnswersApiResponse.class)
-                .map(AnswersApiResponse::getItems)
-                .retryWhen(retrySpec);
+        Mono<List<AnswerResponse>> mono = webClient
+            .get()
+            .uri(uriBuilder -> uriBuilder
+                .path("/questions/{id}/answers")
+                .queryParam(SITE, STACKOVERFLOW)
+                .build(joinedQuestionIds))
+            .exchangeToMono(response -> {
+                if (response.statusCode().is4xxClientError() || response.statusCode().is5xxServerError()) {
+                    return Mono.error(new RuntimeException(API_ERROR));
+                }
+                return response.bodyToMono(AnswersApiResponse.class)
+                    .map(AnswersApiResponse::getItems);
+            });
+        return retrySpec != null ? mono.retryWhen(retrySpec) : mono;
     }
 }

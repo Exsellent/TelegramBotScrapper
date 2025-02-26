@@ -23,34 +23,43 @@ public class GitHubClientImpl implements GitHubClient {
 
     @Override
     public Mono<PullRequestResponse> fetchPullRequestDetails(String owner, String repo, int pullRequestId) {
-        return webClient
-                .get()
-                .uri("/repos/{owner}/{repo}/pulls/{pullRequestId}", owner, repo, pullRequestId)
-                .retrieve()
-                .onStatus(
-                        status -> status.is4xxClientError() || status.is5xxServerError(),
-                        response -> Mono.error(new RuntimeException("API Error")))
-                .bodyToMono(PullRequestResponse.class)
-                .retryWhen(retrySpec);
+        Mono<PullRequestResponse> mono = webClient
+            .get()
+            .uri("/repos/{owner}/{repo}/pulls/{pullRequestId}", owner, repo, pullRequestId)
+            .exchangeToMono(response -> {
+                if (response.statusCode().is4xxClientError() || response.statusCode().is5xxServerError()) {
+                    return Mono.error(new RuntimeException("API Error"));
+                }
+                return response.bodyToMono(PullRequestResponse.class);
+            });
+        return retrySpec != null ? mono.retryWhen(retrySpec) : mono;
     }
 
     @Override
     public Flux<IssuesCommentsResponse> fetchIssueComments(String owner, String repo, int issueNumber) {
-        return webClient
-                .get()
-                .uri("/repos/{owner}/{repo}/issues/{issueNumber}/comments", owner, repo, issueNumber)
-                .retrieve()
-                .bodyToFlux(IssuesCommentsResponse.class)
-                .retryWhen(retrySpec);
+        Flux<IssuesCommentsResponse> flux = webClient
+            .get()
+            .uri("/repos/{owner}/{repo}/issues/{issueNumber}/comments", owner, repo, issueNumber)
+            .exchangeToFlux(response -> {
+                if (response.statusCode().is4xxClientError() || response.statusCode().is5xxServerError()) {
+                    return Flux.error(new RuntimeException("API Error"));
+                }
+                return response.bodyToFlux(IssuesCommentsResponse.class);
+            });
+        return retrySpec != null ? flux.retryWhen(retrySpec) : flux;
     }
 
     @Override
     public Flux<PullCommentsResponse> fetchPullComments(String owner, String repo, int pullNumber) {
-        return webClient
-                .get()
-                .uri("/repos/{owner}/{repo}/pulls/{issueNumber}/comments", owner, repo, pullNumber)
-                .retrieve()
-                .bodyToFlux(PullCommentsResponse.class)
-                .retryWhen(retrySpec);
+        Flux<PullCommentsResponse> flux = webClient
+            .get()
+            .uri("/repos/{owner}/{repo}/pulls/{pullNumber}/comments", owner, repo, pullNumber)
+            .exchangeToFlux(response -> {
+                if (response.statusCode().is4xxClientError() || response.statusCode().is5xxServerError()) {
+                    return Flux.error(new RuntimeException("API Error"));
+                }
+                return response.bodyToFlux(PullCommentsResponse.class);
+            });
+        return retrySpec != null ? flux.retryWhen(retrySpec) : flux;
     }
 }

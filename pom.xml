@@ -12,7 +12,7 @@
 
     <groupId>backend.academy</groupId>
     <artifactId>root</artifactId>
-    <version>${revision}</version>
+    <version>1.0.0</version>
     <packaging>pom</packaging>
 
     <modules>
@@ -22,6 +22,7 @@
     </modules>
 
     <properties>
+        <!-- Определение свойств для версий зависимостей -->
         <revision>1.0</revision>
 
         <!-- java, kotlin and maven versions -->
@@ -54,16 +55,23 @@
         <!-- Spotless -->
         <spotless-maven-plugin.version>2.44.2</spotless-maven-plugin.version>
         <palantir-java-format.version>2.50.0</palantir-java-format.version>
+
         <!-- PMD -->
-        <maven-pmd-plugin.version>3.26.0</maven-pmd-plugin.version>
+        <maven-pmd-plugin.version>3.21.0</maven-pmd-plugin.version>
         <pmd.version>7.9.0</pmd.version>
+
         <!-- Modernizer -->
         <modernizer-maven-plugin.version>3.1.0</modernizer-maven-plugin.version>
+
         <!-- spotbugs -->
         <spotbugs.version>4.9.0</spotbugs.version>
         <spotbugs-maven-plugin.version>4.8.6.6</spotbugs-maven-plugin.version>
         <findsecbugs.version>LATEST</findsecbugs.version>
         <spotbugs-slf4j.version>1.5.0</spotbugs-slf4j.version>
+
+        <!-- Spring Boot -->
+        <spring-boot.version>3.4.2</spring-boot.version>
+        <lombok.version>1.18.36</lombok.version>
     </properties>
 
     <dependencyManagement>
@@ -127,6 +135,13 @@
                 <artifactId>bucket4j-spring-boot-starter</artifactId>
                 <version>${bucket4j-spring-boot-starter.version}</version>
             </dependency>
+            <dependency>
+                <groupId>org.projectlombok</groupId>
+                <artifactId>lombok</artifactId>
+                <version>${lombok.version}</version>
+                <scope>provided</scope>
+            </dependency>
+
         </dependencies>
     </dependencyManagement>
 
@@ -166,6 +181,12 @@
             <artifactId>wiremock-standalone</artifactId>
             <scope>test</scope>
         </dependency>
+<!--        <dependency>-->
+<!--            <groupId>io.github.cdimascio</groupId>-->
+<!--            <artifactId>java-dotenv</artifactId>-->
+<!--            <version>5.2.2</version>-->
+<!--        </dependency>-->
+
     </dependencies>
 
     <build>
@@ -178,40 +199,34 @@
                         <release>${java.version}</release>
                         <parameters>true</parameters>
                         <proc>full</proc>
-                        <compilerArgs>
-                            <arg>-XDcompilePolicy=simple</arg>
-                            <arg>--should-stop=ifError=FLOW</arg>
-                            <arg>-Xplugin:ErrorProne</arg>
-                        </compilerArgs>
                         <annotationProcessorPaths>
                             <path>
                                 <groupId>org.springframework.boot</groupId>
                                 <artifactId>spring-boot-configuration-processor</artifactId>
+                                <version>3.4.2</version>
                             </path>
                             <path>
                                 <groupId>org.projectlombok</groupId>
                                 <artifactId>lombok</artifactId>
-                            </path>
-                            <path>
-                                <groupId>com.google.errorprone</groupId>
-                                <artifactId>error_prone_core</artifactId>
-                                <version>${error-prone.version}</version>
+                                <version>${lombok.version}</version>
                             </path>
                         </annotationProcessorPaths>
                     </configuration>
                 </plugin>
-                <plugin>
-                    <groupId>org.springframework.boot</groupId>
-                    <artifactId>spring-boot-maven-plugin</artifactId>
-                    <configuration>
-                        <excludes>
-                            <exclude>
-                                <groupId>org.projectlombok</groupId>
-                                <artifactId>lombok</artifactId>
-                            </exclude>
-                        </excludes>
-                    </configuration>
-                </plugin>
+                <!--                <plugin>-->
+                <!--                    <groupId>org.springframework.boot</groupId>-->
+                <!--                    <artifactId>spring-boot-maven-plugin</artifactId>-->
+                <!--                    <configuration>-->
+                <!--                        <excludes>-->
+                <!--                            <exclude>-->
+                <!--                                <groupId>org.projectlombok</groupId>-->
+                <!--                                <artifactId>lombok</artifactId>-->
+                <!--                                <version>${lombok.version}</version>-->
+                <!--                                <scope>provided</scope>-->
+                <!--                            </exclude>-->
+                <!--                        </excludes>-->
+                <!--                    </configuration>-->
+                <!--                </plugin>-->
 
                 <plugin>
                     <groupId>com.diffplug.spotless</groupId>
@@ -274,7 +289,7 @@
                         <dependency>
                             <groupId>com.github.spotbugs</groupId>
                             <artifactId>spotbugs</artifactId>
-                            <version>${spotbugs.version}</version>
+                            <version>4.7.3</version>
                         </dependency>
                     </dependencies>
                 </plugin>
@@ -333,19 +348,19 @@
                         <printFailingErrors>true</printFailingErrors>
                         <linkXRef>false</linkXRef>
                         <rulesets>
-                            <ruleset>pmd.xml</ruleset>
+                            <ruleset>${project.basedir}/pmd.xml</ruleset>
                         </rulesets>
                     </configuration>
                     <dependencies>
                         <dependency>
                             <groupId>net.sourceforge.pmd</groupId>
                             <artifactId>pmd-core</artifactId>
-                            <version>${pmd.version}</version>
+                            <version>6.48.0</version>
                         </dependency>
                         <dependency>
                             <groupId>net.sourceforge.pmd</groupId>
                             <artifactId>pmd-java</artifactId>
-                            <version>${pmd.version}</version>
+                            <version>6.48.0</version>
                         </dependency>
                     </dependencies>
                 </plugin>
@@ -389,10 +404,12 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-failsafe-plugin</artifactId>
+                <version>3.0.0-M5</version>
             </plugin>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-surefire-plugin</artifactId>
+                <version>3.5.2</version>
             </plugin>
             <plugin>
                 <groupId>org.codehaus.mojo</groupId>

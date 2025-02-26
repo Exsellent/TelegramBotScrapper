@@ -1,23 +1,90 @@
 app:
-  github-token: ${GITHUB_TOKEN} # env variable
-  stackoverflow:
-    key: ${SO_TOKEN_KEY}
-    access-token: ${SO_ACCESS_TOKEN}
+  scheduler:
+    enable: true
+    interval: PT10S
+    force-check-delay: PT10S
+  database-access-type: IN_MEMORY
 
-spring:
-  application:
-    name: Scrapper
-  liquibase:
-    enabled: false
-  jpa:
-    hibernate:
-      ddl-auto: validate
-    open-in-view: false
+bot:
+  api:
+    baseurl: ${BOT_API_BASEURL:http://localhost:8080}
+  database-access-type: IN_MEMORY
+  github-token: ${GITHUB_TOKEN:ghp_PUBLICTOKEN1234567890EXAMPLE}
+  stackoverflow:
+    key: ${STACKOVERFLOW_KEY:PUBLIC_STACKOVERFLOW_KEY}
+    access-token: ${STACKOVERFLOW_ACCESS_TOKEN:PUBLIC_STACKOVERFLOW_ACCESS_TOKEN}
 
 server:
-  port: 8081
+  port: 8080
+  error:
+  include-message: true
+  include-binding-errors: true
+  include-stacktrace: true
+  include-exception: true
+
+
+
+spring:
+  web:
+    server:
+      port-auto-increment: true
+jackson:
+  deserialization:
+    fail-on-unknown-properties: false
+  serialization:
+    write-dates-as-timestamps: false
+
+  application:
+    name: scrapper
+  autoconfigure:
+    exclude:
+      - org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration
+      - org.springframework.boot.autoconfigure.orm.jpa.HibernateJpaAutoConfiguration
+      - org.springframework.boot.autoconfigure.jdbc.DataSourceTransactionManagerAutoConfiguration
+  main:
+    allow-bean-definition-overriding: true
+
+management:
+  endpoints:
+    web:
+      base-path: /api/actuator
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      show-details: always
+
+
+logging:
+  config: classpath:log4j2-plain.xml
+  level:
+    org.springframework.boot.context.properties: DEBUG
+
+github:
+  base:
+    url: ${GITHUB_BASE_URL:https://api.github.com}
+
+stackoverflow:
+  base:
+    url: ${STACKOVERFLOW_BASE_URL:https://api.stackexchange.com/2.2}
 
 springdoc:
   swagger-ui:
-    enabled: true
     path: /swagger-ui
+
+rate-limiting:
+  capacity: 20
+  tokens: 20
+  refill-duration: 60
+
+retry:
+  strategy: constant
+  max-attempts: 3
+  first-backoff-seconds: 1
+  max-backoff-seconds: 5
+  jitter-factor: 0.5
+  retryable-status-codes:
+    - 500
+    - 502
+    - 503
+    - 504

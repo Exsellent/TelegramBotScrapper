@@ -13,4 +13,16 @@ public class LinkResponse {
     private Long id;
     private String url;
     private String description;
+
+    public Long getId() {
+        return id;
+    }
+
+    public String getUrl() {
+        return url;
+    }
+
+    public String getDescription() {
+        return description;
+    }
 }

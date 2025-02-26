@@ -30,6 +30,14 @@ public class PullCommentsResponse implements Comment {
 
     private String body;
 
+    public String getBody() { // ДОбавляем метод getBody()
+        return body;
+    }
+
+    public Long getId() {
+        return id;
+    }
+
     @Override
     public OffsetDateTime getCreatedAt() {
         return createdAt;

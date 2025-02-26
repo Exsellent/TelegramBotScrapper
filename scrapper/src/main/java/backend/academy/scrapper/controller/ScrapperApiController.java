@@ -43,7 +43,7 @@ public class ScrapperApiController {
     @PostMapping("/tg-chat/{id}")
     public ResponseEntity<String> registerChat(@PathVariable("id") Long id) {
         chatService.register(id);
-        return ResponseEntity.ok("Чат " + id + " successfully registered.");
+        return ResponseEntity.ok("Chat " + id + " successfully registered.");
     }
 
     @DeleteMapping("/tg-chat/{id}")

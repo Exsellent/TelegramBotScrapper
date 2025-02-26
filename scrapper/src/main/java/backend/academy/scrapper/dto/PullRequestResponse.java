@@ -26,6 +26,14 @@ public class PullRequestResponse {
     @JsonProperty("updated_at")
     private OffsetDateTime updatedAt;
 
+    @JsonProperty("id")
+    private Long id;
+
+    public Long getId() {
+        return id;
+    }
+
+
     public String getTitle() {
         return title;
     }
