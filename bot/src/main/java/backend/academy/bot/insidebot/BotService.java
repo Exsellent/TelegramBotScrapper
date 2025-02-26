@@ -1,4 +1,4 @@
-package backend.academy.bot.insadebot;
+package backend.academy.bot.insidebot;
 
 import jakarta.validation.constraints.NotNull;
 import org.springframework.boot.context.properties.ConfigurationProperties;

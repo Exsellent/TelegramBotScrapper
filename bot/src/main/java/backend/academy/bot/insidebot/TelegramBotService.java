@@ -1,4 +1,4 @@
-package backend.academy.bot.insadebot;
+package backend.academy.bot.insidebot;
 
 import backend.academy.bot.command.CommandHandler;
 import com.pengrad.telegrambot.TelegramBot;

@@ -19,7 +19,7 @@ public class HelpCommand implements Command {
     public HelpCommand(List<Command> commands) {
         // Исключаем сам HelpCommand, чтобы избежать рекурсии
         this.commands =
-                commands.stream().filter(cmd -> !(cmd instanceof HelpCommand)).collect(Collectors.toList());
+            commands.stream().filter(cmd -> !(cmd instanceof HelpCommand)).collect(Collectors.toList());
     }
 
     @Override
@@ -38,16 +38,16 @@ public class HelpCommand implements Command {
 
         for (Command command : commands) {
             messageText
-                    .append(command.command())
-                    .append(": ")
-                    .append(command.description())
-                    .append("\n");
+                .append(command.command())
+                .append(": ")
+                .append(command.description())
+                .append("\n");
         }
 
         messageText
-                .append("\nLinks in the following format are supported:\n")
-                .append("GitHub: https://github.com/Exsellent/ReflectionBenchmark\n")
-                .append("StackOverflow: https://stackoverflow.com/questions/858572/how-to-make-a-new-list-in-java");
+            .append("\nSupported link formats:\n")
+            .append("GitHub: https://github.com/example/repo\n")
+            .append("StackOverflow: https://stackoverflow.com/questions/example");
 
         LOGGER.info("Handling /help command");
 

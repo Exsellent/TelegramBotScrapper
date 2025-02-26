@@ -4,6 +4,7 @@ import backend.academy.bot.client.ScrapperApiClient;
 import backend.academy.bot.exception.ChatAlreadyRegisteredException;
 import com.pengrad.telegrambot.model.Update;
 import com.pengrad.telegrambot.request.SendMessage;
+import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -35,7 +36,13 @@ public class StartCommand implements Command {
         Long chatId = update.message().chat().id();
         try {
             scrapperApiClient.registerChat(chatId);
-            LOGGER.info("/start: chat {} successfully registered.", chatId);
+            LOGGER.info("Chat registration completed",
+                Map.of(
+                    "event", "registration",
+                    "chatId", chatId,
+                    "status", "success"
+                ));
+
             return new SendMessage(chatId, "Welcome!");
         } catch (ChatAlreadyRegisteredException e) {
             LOGGER.info("/start: the chat {} has already been registered.", chatId);

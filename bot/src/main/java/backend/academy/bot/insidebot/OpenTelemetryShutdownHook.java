@@ -1,4 +1,4 @@
-package backend.academy.bot.insadebot;
+package backend.academy.bot.insidebot;
 
 import io.opentelemetry.sdk.OpenTelemetrySdk;
 import io.opentelemetry.sdk.common.CompletableResultCode;

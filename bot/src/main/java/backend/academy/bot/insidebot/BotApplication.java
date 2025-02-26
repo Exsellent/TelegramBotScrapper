@@ -1,4 +1,4 @@
-package backend.academy.bot.insadebot;
+package backend.academy.bot.insidebot;
 
 import backend.academy.bot.configuration.ApplicationConfig;
 import org.springframework.boot.SpringApplication;

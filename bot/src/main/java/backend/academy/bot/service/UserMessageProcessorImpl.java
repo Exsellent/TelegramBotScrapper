@@ -49,12 +49,12 @@ public class UserMessageProcessorImpl implements UserMessageProcessor {
             }
 
             LOGGER.debug("Unknown command received: {} from chat: {}", messageText, chatId);
-            return new SendMessage(chatId, "Unknown team. " + "Use /help for the list" + "available commands.");
+            return new SendMessage(chatId, "Unknown team. Use /help for the list available commands.");
+
 
         } catch (Exception e) {
             LOGGER.error("Error processing message: {} from chat: {}", messageText, chatId, e);
-            return new SendMessage(
-                    chatId, "An error occurred while processing the command." + "Please try again later..");
+            return new SendMessage(chatId, "An error occurred while processing the command. Please try again later.");
         }
     }
 }

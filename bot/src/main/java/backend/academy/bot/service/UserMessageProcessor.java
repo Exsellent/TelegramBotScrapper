@@ -7,6 +7,5 @@ import java.util.List;
 
 public interface UserMessageProcessor {
     List<Command> getCommands();
-
     SendMessage process(Update update);
 }

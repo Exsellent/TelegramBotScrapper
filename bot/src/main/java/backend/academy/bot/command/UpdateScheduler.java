@@ -2,7 +2,7 @@ package backend.academy.bot.command;
 
 import backend.academy.bot.client.ScrapperApiClient;
 import backend.academy.bot.dto.LinkUpdateRequest;
-import backend.academy.bot.insadebot.TelegramBotService;
+import backend.academy.bot.insidebot.TelegramBotService;
 import com.pengrad.telegrambot.request.SendMessage;
 import java.util.List;
 import org.slf4j.Logger;

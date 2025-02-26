@@ -65,7 +65,7 @@ public class TrackCommand implements Command {
 
             case AWAITING_TAGS:
                 if (messageText.equals("skip")) {
-                    break; // Skip tags
+                    break;
                 }
                 List<String> tags = Arrays.asList(messageText.split("\\s+"));
                 data.setTags(tags);
@@ -75,7 +75,7 @@ public class TrackCommand implements Command {
 
             case AWAITING_FILTERS:
                 if (messageText.equals("skip")) {
-                    break; // Skip filters
+                    break;
                 }
                 Map<String, String> filters = parseFilters(messageText);
                 if (filters.isEmpty()) {
