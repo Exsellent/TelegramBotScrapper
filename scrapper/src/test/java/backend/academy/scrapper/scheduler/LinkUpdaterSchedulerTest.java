@@ -1,5 +1,13 @@
 package backend.academy.scrapper.scheduler;
 
+import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.Mockito.any;
+import static org.mockito.Mockito.anyInt;
+import static org.mockito.Mockito.anyString;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+
 import backend.academy.scrapper.client.BotApiClient;
 import backend.academy.scrapper.configuration.ApplicationConfig;
 import backend.academy.scrapper.dto.ChatLinkDTO;
@@ -24,28 +32,27 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 import reactor.core.publisher.Mono;
-import static org.mockito.ArgumentMatchers.anyLong;
-import static org.mockito.Mockito.any;
-import static org.mockito.Mockito.anyInt;
-import static org.mockito.Mockito.anyString;
-import static org.mockito.Mockito.times;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
 
 public class LinkUpdaterSchedulerTest {
 
     @Mock
     private LinkService linkService;
+
     @Mock
     private ChatLinkService chatLinkService;
+
     @Mock
     private GitHubService gitHubService;
+
     @Mock
     private StackOverflowService stackOverflowService;
+
     @Mock
     private BotApiClient botApiClient;
+
     @Mock
     private ApplicationConfig applicationConfig;
+
     @Mock
     private ApplicationConfig.Scheduler schedulerConfig;
 
@@ -59,7 +66,8 @@ public class LinkUpdaterSchedulerTest {
         when(schedulerConfig.enable()).thenReturn(true);
         when(schedulerConfig.interval()).thenReturn(Duration.ofDays(1L));
 
-        scheduler = new LinkUpdaterScheduler(applicationConfig, linkService, chatLinkService, gitHubService, stackOverflowService, botApiClient);
+        scheduler = new LinkUpdaterScheduler(
+                applicationConfig, linkService, chatLinkService, gitHubService, stackOverflowService, botApiClient);
     }
 
     @Test
@@ -67,22 +75,23 @@ public class LinkUpdaterSchedulerTest {
         // Arrange
         LocalDateTime now = LocalDateTime.now();
         LocalDateTime linkLastUpdateTime = now.minusMinutes(5); // Время последнего обновления ссылки раньше текущего
-        LinkDTO mockLink = new LinkDTO(1L, "https://github.com/owner/repo/pull/1", "test", now, now, linkLastUpdateTime);
+        LinkDTO mockLink =
+                new LinkDTO(1L, "https://github.com/owner/repo/pull/1", "test", now, now, linkLastUpdateTime);
 
-        when(linkService.findLinksToCheck(any(LocalDateTime.class)))
-            .thenReturn(Collections.singletonList(mockLink));
+        when(linkService.findLinksToCheck(any(LocalDateTime.class))).thenReturn(Collections.singletonList(mockLink));
 
         OffsetDateTime commentUpdatedAt = OffsetDateTime.now();
-        IssuesCommentsResponse comment = new IssuesCommentsResponse("url", 1L, "Comment body", commentUpdatedAt.minusMinutes(10), commentUpdatedAt);
+        IssuesCommentsResponse comment = new IssuesCommentsResponse(
+                "url", 1L, "Comment body", commentUpdatedAt.minusMinutes(10), commentUpdatedAt);
         List<IssuesCommentsResponse> issueComments = List.of(comment);
         when(gitHubService.getPullRequestInfo(anyString(), anyString(), anyInt()))
-            .thenReturn(Mono.just(new CombinedPullRequestInfo("Title", issueComments, new ArrayList<PullCommentsResponse>())));
+                .thenReturn(Mono.just(
+                        new CombinedPullRequestInfo("Title", issueComments, new ArrayList<PullCommentsResponse>())));
 
         // Добавляем мок для chatLinkService, чтобы список tgChatIds не был пустым
         when(chatLinkService.findAllChatsForLink(anyLong())).thenReturn(List.of(new ChatLinkDTO(1L, 1L)));
 
-        when(botApiClient.postUpdate(any(LinkUpdateRequest.class)))
-            .thenReturn(Mono.empty());
+        when(botApiClient.postUpdate(any(LinkUpdateRequest.class))).thenReturn(Mono.empty());
 
         // Act
         scheduler.update();

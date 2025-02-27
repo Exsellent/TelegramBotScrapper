@@ -40,8 +40,8 @@ public class AnswerResponse {
     public OffsetDateTime getCreationDate() {
         return creationDate;
     }
+
     public Long getQuestionId() {
         return questionId;
     }
-
 }

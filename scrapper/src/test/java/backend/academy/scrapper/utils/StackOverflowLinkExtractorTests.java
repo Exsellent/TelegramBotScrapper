@@ -14,7 +14,7 @@ public class StackOverflowLinkExtractorTests {
     @Test
     public void testInvalidStackOverflowUrl() {
         String url = "https://stackoverflow.com/not/questions";
-        Assertions.assertThrows(IllegalArgumentException.class, () -> StackOverflowLinkExtractor.extractQuestionId(url));
+        Assertions.assertThrows(
+                IllegalArgumentException.class, () -> StackOverflowLinkExtractor.extractQuestionId(url));
     }
-
 }

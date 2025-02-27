@@ -1,14 +1,15 @@
 package backend.academy.scrapper.repository.repository;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
 import backend.academy.scrapper.domain.Link;
 import java.time.LocalDateTime;
 import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class InMemoryLinkRepositoryImplTest {
 
@@ -74,10 +75,12 @@ class InMemoryLinkRepositoryImplTest {
         linkRepository.save(oldLink);
         linkRepository.save(newLink);
 
-        var results = linkRepository.findByLastCheckTimeBeforeOrLastCheckTimeIsNull(LocalDateTime.now().minusDays(1));
+        var results = linkRepository.findByLastCheckTimeBeforeOrLastCheckTimeIsNull(
+                LocalDateTime.now().minusDays(1));
         assertEquals(1, results.size());
         assertEquals("https://github.com/old", results.get(0).getUrl());
     }
+
     @Test
     void testDuplicateLinkNotAllowed() {
         Link link1 = new Link();
@@ -95,10 +98,9 @@ class InMemoryLinkRepositoryImplTest {
 
         // cмотрим, что в репозитории осталась только одна ссылка
         long count = linkRepository.findAll().stream()
-            .filter(l -> l.getUrl().equals("https://github.com/test/repo"))
-            .count();
+                .filter(l -> l.getUrl().equals("https://github.com/test/repo"))
+                .count();
 
         assertEquals(1, count, "Дубликаты ссылок не должны сохраняться!");
     }
-
 }

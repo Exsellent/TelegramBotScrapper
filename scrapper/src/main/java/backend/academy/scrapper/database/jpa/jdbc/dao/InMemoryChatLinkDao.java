@@ -11,8 +11,7 @@ import org.springframework.stereotype.Repository;
 @Repository
 @ConditionalOnProperty(name = "app.database-access-type", havingValue = "IN_MEMORY", matchIfMissing = true)
 public class InMemoryChatLinkDao implements ChatLinkDao {
-    private final ConcurrentHashMap<Long, ConcurrentHashMap<Long, ChatLinkDTO>>
-        chatLinks = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<Long, ConcurrentHashMap<Long, ChatLinkDTO>> chatLinks = new ConcurrentHashMap<>();
 
     @Override
     public void add(ChatLinkDTO chatLink) {
@@ -33,8 +32,7 @@ public class InMemoryChatLinkDao implements ChatLinkDao {
 
     @Override
     public List<ChatLinkDTO> findAll() {
-        return chatLinks.values().stream().flatMap(map -> map.values()
-            .stream()).collect(Collectors.toList());
+        return chatLinks.values().stream().flatMap(map -> map.values().stream()).collect(Collectors.toList());
     }
 
     @Override

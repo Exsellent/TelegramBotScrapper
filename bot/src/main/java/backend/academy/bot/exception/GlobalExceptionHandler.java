@@ -14,32 +14,24 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<ApiErrorResponse> handleValidationExceptions(MethodArgumentNotValidException ex) {
-        String errorMessage = ex.getBindingResult()
-            .getFieldErrors()
-            .stream()
-            .map(FieldError::getDefaultMessage)
-            .findFirst()
-            .orElse("Validation error");
+        String errorMessage = ex.getBindingResult().getFieldErrors().stream()
+                .map(FieldError::getDefaultMessage)
+                .findFirst()
+                .orElse("Validation error");
 
         ApiErrorResponse response = new ApiErrorResponse(
-            "Bad request",
-            HttpStatus.BAD_REQUEST.toString(),
-            ex.getClass().getSimpleName(),
-            errorMessage,
-            null
-        );
+                "Bad request", HttpStatus.BAD_REQUEST.toString(), ex.getClass().getSimpleName(), errorMessage, null);
         return new ResponseEntity<>(response, HttpStatus.BAD_REQUEST);
     }
 
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ApiErrorResponse> handleGenericException(Exception ex, WebRequest request) {
         ApiErrorResponse response = new ApiErrorResponse(
-            "Internal server error",
-            HttpStatus.INTERNAL_SERVER_ERROR.toString(),
-            ex.getClass().getSimpleName(),
-            ex.getMessage(),
-            null
-        );
+                "Internal server error",
+                HttpStatus.INTERNAL_SERVER_ERROR.toString(),
+                ex.getClass().getSimpleName(),
+                ex.getMessage(),
+                null);
         return new ResponseEntity<>(response, HttpStatus.INTERNAL_SERVER_ERROR);
     }
 }

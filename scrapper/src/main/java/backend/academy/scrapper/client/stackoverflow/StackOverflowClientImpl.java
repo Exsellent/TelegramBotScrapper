@@ -31,18 +31,18 @@ public class StackOverflowClientImpl implements StackOverflowClient {
         String joinedQuestionIds = String.join(";", questionIds);
 
         Mono<List<QuestionResponse>> mono = webClient
-            .get()
-            .uri(uriBuilder -> uriBuilder
-                .path("/questions/{ids}")
-                .queryParam(SITE, STACKOVERFLOW)
-                .build(joinedQuestionIds))
-            .exchangeToMono(response -> {
-                if (response.statusCode().is4xxClientError() || response.statusCode().is5xxServerError()) {
-                    return Mono.error(new RuntimeException(API_ERROR));
-                }
-                return response.bodyToMono(QuestionsApiResponse.class)
-                    .map(QuestionsApiResponse::getItems);
-            });
+                .get()
+                .uri(uriBuilder -> uriBuilder
+                        .path("/questions/{ids}")
+                        .queryParam(SITE, STACKOVERFLOW)
+                        .build(joinedQuestionIds))
+                .exchangeToMono(response -> {
+                    if (response.statusCode().is4xxClientError()
+                            || response.statusCode().is5xxServerError()) {
+                        return Mono.error(new RuntimeException(API_ERROR));
+                    }
+                    return response.bodyToMono(QuestionsApiResponse.class).map(QuestionsApiResponse::getItems);
+                });
         return retrySpec != null ? mono.retryWhen(retrySpec) : mono;
     }
 
@@ -51,18 +51,18 @@ public class StackOverflowClientImpl implements StackOverflowClient {
         String joinedQuestionIds = String.join(";", questionIds);
 
         Mono<List<AnswerResponse>> mono = webClient
-            .get()
-            .uri(uriBuilder -> uriBuilder
-                .path("/questions/{id}/answers")
-                .queryParam(SITE, STACKOVERFLOW)
-                .build(joinedQuestionIds))
-            .exchangeToMono(response -> {
-                if (response.statusCode().is4xxClientError() || response.statusCode().is5xxServerError()) {
-                    return Mono.error(new RuntimeException(API_ERROR));
-                }
-                return response.bodyToMono(AnswersApiResponse.class)
-                    .map(AnswersApiResponse::getItems);
-            });
+                .get()
+                .uri(uriBuilder -> uriBuilder
+                        .path("/questions/{id}/answers")
+                        .queryParam(SITE, STACKOVERFLOW)
+                        .build(joinedQuestionIds))
+                .exchangeToMono(response -> {
+                    if (response.statusCode().is4xxClientError()
+                            || response.statusCode().is5xxServerError()) {
+                        return Mono.error(new RuntimeException(API_ERROR));
+                    }
+                    return response.bodyToMono(AnswersApiResponse.class).map(AnswersApiResponse::getItems);
+                });
         return retrySpec != null ? mono.retryWhen(retrySpec) : mono;
     }
 }

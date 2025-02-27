@@ -1,5 +1,13 @@
 package backend.academy.command;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.Mockito.doNothing;
+import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
+
 import backend.academy.bot.client.ScrapperApiClient;
 import backend.academy.bot.command.UntrackCommand;
 import backend.academy.bot.dto.RemoveLinkRequest;
@@ -14,13 +22,6 @@ import org.junit.jupiter.api.Test;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyLong;
-import static org.mockito.Mockito.doNothing;
-import static org.mockito.Mockito.doThrow;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
 
 class UntrackCommandTest {
 
@@ -70,7 +71,8 @@ class UntrackCommandTest {
         when(message.text()).thenReturn("/untrack " + urlToUntrack);
 
         doThrow(new LinkNotFoundException("Link not found"))
-            .when(scrapperApiClient).removeLink(anyLong(), any(RemoveLinkRequest.class));
+                .when(scrapperApiClient)
+                .removeLink(anyLong(), any(RemoveLinkRequest.class));
 
         SendMessage response = command.handle(update);
 
@@ -92,7 +94,8 @@ class UntrackCommandTest {
         when(message.text()).thenReturn("/untrack " + urlToUntrack);
 
         doThrow(new ChatNotFoundException("Chat not found"))
-            .when(scrapperApiClient).removeLink(anyLong(), any(RemoveLinkRequest.class));
+                .when(scrapperApiClient)
+                .removeLink(anyLong(), any(RemoveLinkRequest.class));
 
         SendMessage response = command.handle(update);
 

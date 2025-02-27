@@ -25,8 +25,10 @@ public class RateLimitingFilter implements Filter {
     private final ObjectMapper objectMapper;
     private static final int REQUEST_LIMIT = 100;
     static final ConcurrentHashMap<String, AtomicInteger> requestCounts = new ConcurrentHashMap<>();
+
     @Override
-    public void doFilter(ServletRequest servletRequest, ServletResponse servletResponse, FilterChain chain) throws IOException, ServletException {
+    public void doFilter(ServletRequest servletRequest, ServletResponse servletResponse, FilterChain chain)
+            throws IOException, ServletException {
         HttpServletRequest request = (HttpServletRequest) servletRequest;
         HttpServletResponse response = (HttpServletResponse) servletResponse;
 
@@ -35,7 +37,13 @@ public class RateLimitingFilter implements Filter {
         int requestCount = requestCounts.get(clientIp).incrementAndGet();
 
         if (requestCount > REQUEST_LIMIT) {
-            ApiErrorResponse errorResponse = ApiErrorResponse.builder().description("Too many requests").code(HttpStatus.TOO_MANY_REQUESTS.toString()).exceptionName("RateLimitExceeded").exceptionMessage("You have exceeded the request limit").stacktrace(null).build();
+            ApiErrorResponse errorResponse = ApiErrorResponse.builder()
+                    .description("Too many requests")
+                    .code(HttpStatus.TOO_MANY_REQUESTS.toString())
+                    .exceptionName("RateLimitExceeded")
+                    .exceptionMessage("You have exceeded the request limit")
+                    .stacktrace(null)
+                    .build();
 
             response.setStatus(HttpStatus.TOO_MANY_REQUESTS.value());
             response.setContentType("application/json");

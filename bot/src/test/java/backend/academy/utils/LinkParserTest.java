@@ -1,9 +1,10 @@
 package backend.academy.utils;
 
-import backend.academy.bot.utils.LinkParser;
-import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+
+import backend.academy.bot.utils.LinkParser;
+import org.junit.jupiter.api.Test;
 
 class LinkParserTest {
 

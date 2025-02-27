@@ -26,12 +26,12 @@ public class BotApiClient {
 
     public Mono<Void> postUpdate(LinkUpdateRequest update) {
         return webClient
-            .post()
-            .uri("/updates")
-            .contentType(MediaType.APPLICATION_JSON)
-            .bodyValue(update)
-            .retrieve()
-            .toBodilessEntity()
-            .then();
+                .post()
+                .uri("/updates")
+                .contentType(MediaType.APPLICATION_JSON)
+                .bodyValue(update)
+                .retrieve()
+                .toBodilessEntity()
+                .then();
     }
 }

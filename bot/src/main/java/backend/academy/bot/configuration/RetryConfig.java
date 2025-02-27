@@ -10,9 +10,9 @@ public class RetryConfig {
     @Bean
     public RetryTemplate retryTemplate() {
         return RetryTemplate.builder()
-            .maxAttempts(3)  // 3 попытки на каждый запрос
-            .fixedBackoff(1000)  // Задержка 1 секунда между попытками
-            .retryOn(Exception.class)  // Повторяем только при исключениях
-            .build();
+                .maxAttempts(3) // 3 попытки на каждый запрос
+                .fixedBackoff(1000) // Задержка 1 секунда между попытками
+                .retryOn(Exception.class) // Повторяем только при исключениях
+                .build();
     }
 }

@@ -1,5 +1,12 @@
 package backend.academy.service;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+
 import backend.academy.bot.command.Command;
 import backend.academy.bot.service.UserMessageProcessor;
 import backend.academy.bot.service.UserMessageProcessorImpl;
@@ -13,19 +20,15 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.times;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
 
 class UserMessageProcessorImplTest {
 
     @Mock
     private Update update;
+
     @Mock
     private Message message;
+
     @Mock
     private Chat chat;
 

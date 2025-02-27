@@ -18,8 +18,7 @@ public class InMemoryLinkDao implements LinkDao {
     @Override
     public Long add(LinkDTO link) {
         long linkId = idCounter++;
-        LinkDTO newLink = new LinkDTO(linkId, link.getUrl(), link.getDescription(),
-            LocalDateTime.now(), null, null);
+        LinkDTO newLink = new LinkDTO(linkId, link.getUrl(), link.getDescription(), LocalDateTime.now(), null, null);
         links.put(linkId, newLink);
         return linkId;
     }

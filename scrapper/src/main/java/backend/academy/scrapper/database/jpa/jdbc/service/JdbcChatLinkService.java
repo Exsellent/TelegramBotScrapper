@@ -26,8 +26,7 @@ public class JdbcChatLinkService implements ChatLinkService {
 
     @Override
     public void removeLinkFromChat(long chatId, long linkId) {
-        chatLinkDao.remove(chatId,
-            linkId);
+        chatLinkDao.remove(chatId, linkId);
     }
 
     @Override

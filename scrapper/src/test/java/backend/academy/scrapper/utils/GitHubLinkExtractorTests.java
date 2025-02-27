@@ -17,7 +17,6 @@ public class GitHubLinkExtractorTests {
         Assertions.assertEquals("ReflectionBenchmark", GitHubLinkExtractor.extractRepo(url));
     }
 
-
     @Test
     public void testInvalidGitHubUrl() {
         String url1 = "https://github.com/";

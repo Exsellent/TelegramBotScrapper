@@ -17,8 +17,7 @@ public class BotMetrics {
     }
 
     public void recordUpdateProcessingTime(Timer.Sample sample, boolean success) {
-        sample.stop(meterRegistry.timer("bot.update.processing",
-            "status", success ? "success" : "error"));
+        sample.stop(meterRegistry.timer("bot.update.processing", "status", success ? "success" : "error"));
     }
 
     public void incrementRequestCount(String requestType) {

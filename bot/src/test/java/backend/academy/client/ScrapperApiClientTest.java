@@ -1,15 +1,15 @@
 package backend.academy.client;
 
+import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.Mockito.*;
+
 import backend.academy.bot.client.ScrapperApiClient;
 import backend.academy.bot.dto.ListLinksResponse;
+import java.util.Collections;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 import org.springframework.web.client.RestClient;
-
-import java.util.Collections;
-import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.Mockito.*;
 
 class ScrapperApiClientTest {
     private ScrapperApiClient scrapperApiClient;

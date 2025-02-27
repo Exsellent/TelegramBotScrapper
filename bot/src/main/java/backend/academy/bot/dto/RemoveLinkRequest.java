@@ -18,8 +18,7 @@ public class RemoveLinkRequest {
     public static class Builder {
         private String link;
 
-        private Builder() {
-        }
+        private Builder() {}
 
         public Builder link(String link) {
             this.link = link;

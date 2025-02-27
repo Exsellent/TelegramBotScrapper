@@ -40,11 +40,16 @@ public class ScrapperApiClient {
 
     public ScrapperApiClient(@Value("${scrapper.api.base-url}") String baseUrl) {
         this.baseUrl = baseUrl;
-        this.restClient = RestClient.builder().requestFactory(new SimpleClientHttpRequestFactory()).defaultHeader(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE).defaultStatusHandler((HttpStatusCode status) -> status.is4xxClientError(), (request, response) -> {
-            throw new ApiException("Client error: " + response.getStatusCode());
-        }).defaultStatusHandler((HttpStatusCode status) -> status.is5xxServerError(), (request, response) -> {
-            throw new ApiException("Server error: " + response.getStatusCode());
-        }).build();
+        this.restClient = RestClient.builder()
+                .requestFactory(new SimpleClientHttpRequestFactory())
+                .defaultHeader(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE)
+                .defaultStatusHandler((HttpStatusCode status) -> status.is4xxClientError(), (request, response) -> {
+                    throw new ApiException("Client error: " + response.getStatusCode());
+                })
+                .defaultStatusHandler((HttpStatusCode status) -> status.is5xxServerError(), (request, response) -> {
+                    throw new ApiException("Server error: " + response.getStatusCode());
+                })
+                .build();
     }
 
     @PostConstruct
@@ -60,14 +65,26 @@ public class ScrapperApiClient {
     public void addLink(Long chatId, AddLinkRequest requestPayload) {
         validateLinkRequest(requestPayload);
 
-        RetryTemplate retryTemplate = RetryTemplate.builder().maxAttempts(MAX_RETRIES).fixedBackoff(1000) // 1 second between retries
-            .retryOn(ApiException.class).build();
+        RetryTemplate retryTemplate = RetryTemplate.builder()
+                .maxAttempts(MAX_RETRIES)
+                .fixedBackoff(1000) // 1 second between retries
+                .retryOn(ApiException.class)
+                .build();
 
         try {
             retryTemplate.execute(context -> {
-                LOGGER.debug("Attempting to add link: {} for chat: {}, attempt: {}", requestPayload.getLink(), chatId, context.getRetryCount() + 1);
+                LOGGER.debug(
+                        "Attempting to add link: {} for chat: {}, attempt: {}",
+                        requestPayload.getLink(),
+                        chatId,
+                        context.getRetryCount() + 1);
 
-                return restClient.post().uri(baseUrl + "/chats/{chatId}/links", chatId).body(requestPayload).retrieve().toBodilessEntity();
+                return restClient
+                        .post()
+                        .uri(baseUrl + "/chats/{chatId}/links", chatId)
+                        .body(requestPayload)
+                        .retrieve()
+                        .toBodilessEntity();
             });
 
             LOGGER.info("Successfully added link: {} for chat: {}", requestPayload.getLink(), chatId);
@@ -116,11 +133,20 @@ public class ScrapperApiClient {
     }
 
     public void removeLink(Long chatId, RemoveLinkRequest requestPayload) {
-        RetryTemplate retryTemplate = RetryTemplate.builder().maxAttempts(MAX_RETRIES).fixedBackoff(1000).retryOn(ApiException.class).build();
+        RetryTemplate retryTemplate = RetryTemplate.builder()
+                .maxAttempts(MAX_RETRIES)
+                .fixedBackoff(1000)
+                .retryOn(ApiException.class)
+                .build();
 
         try {
             retryTemplate.execute(context -> {
-                return restClient.method(HttpMethod.DELETE).uri(baseUrl + "/chats/{chatId}/links", chatId).body(requestPayload).retrieve().toBodilessEntity();
+                return restClient
+                        .method(HttpMethod.DELETE)
+                        .uri(baseUrl + "/chats/{chatId}/links", chatId)
+                        .body(requestPayload)
+                        .retrieve()
+                        .toBodilessEntity();
             });
 
             LOGGER.info("Successfully removed link: {} for chat: {}", requestPayload.getLink(), chatId);
@@ -130,10 +156,13 @@ public class ScrapperApiClient {
         }
     }
 
-
     public void cancelOperation(Long chatId) {
         try {
-            restClient.post().uri(baseUrl + "/chats/{chatId}/cancel", chatId).retrieve().toBodilessEntity();
+            restClient
+                    .post()
+                    .uri(baseUrl + "/chats/{chatId}/cancel", chatId)
+                    .retrieve()
+                    .toBodilessEntity();
 
             LOGGER.info("Successfully cancelled operation for chat: {}", chatId);
         } catch (Exception e) {
@@ -144,8 +173,11 @@ public class ScrapperApiClient {
 
     public List<LinkUpdateRequest> getUpdates() {
         try {
-            return restClient.get().uri(baseUrl + "/updates").retrieve().body(new ParameterizedTypeReference<List<LinkUpdateRequest>>() {
-            });
+            return restClient
+                    .get()
+                    .uri(baseUrl + "/updates")
+                    .retrieve()
+                    .body(new ParameterizedTypeReference<List<LinkUpdateRequest>>() {});
         } catch (Exception e) {
             LOGGER.error("Error when receiving updates: {}", e.getMessage());
             return Collections.emptyList();
@@ -154,7 +186,11 @@ public class ScrapperApiClient {
 
     public ListLinksResponse getAllLinks(Long chatId) {
         try {
-            return restClient.get().uri(baseUrl + "/chats/{chatId}/links", chatId).retrieve().body(ListLinksResponse.class);
+            return restClient
+                    .get()
+                    .uri(baseUrl + "/chats/{chatId}/links", chatId)
+                    .retrieve()
+                    .body(ListLinksResponse.class);
         } catch (Exception e) {
             LOGGER.error("Error when getting the list of links: {}", e.getMessage());
             return new ListLinksResponse(Collections.emptyList());
@@ -163,7 +199,11 @@ public class ScrapperApiClient {
 
     public void registerChat(Long chatId) {
         try {
-            restClient.post().uri(baseUrl + "/chats/{chatId}", chatId).retrieve().toBodilessEntity();
+            restClient
+                    .post()
+                    .uri(baseUrl + "/chats/{chatId}", chatId)
+                    .retrieve()
+                    .toBodilessEntity();
             LOGGER.info("Chat {} registered.", chatId);
         } catch (Exception e) {
             LOGGER.error("Error registering the chat {}: {}", chatId, e.getMessage());

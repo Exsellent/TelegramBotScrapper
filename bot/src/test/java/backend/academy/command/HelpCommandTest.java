@@ -1,5 +1,9 @@
 package backend.academy.command;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
+
 import backend.academy.bot.command.Command;
 import backend.academy.bot.command.HelpCommand;
 import com.pengrad.telegrambot.model.Chat;
@@ -8,9 +12,6 @@ import com.pengrad.telegrambot.model.Update;
 import com.pengrad.telegrambot.request.SendMessage;
 import java.util.List;
 import org.junit.jupiter.api.Test;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
 
 class HelpCommandTest {
 
@@ -40,7 +41,8 @@ class HelpCommandTest {
         String text = (String) response.getParameters().get("text");
 
         // Формируем ожидаемый ответ
-        String expectedResponse = """
+        String expectedResponse =
+                """
         Available Commands:
         /start: Launch the bot
 

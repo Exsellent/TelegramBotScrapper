@@ -29,7 +29,6 @@ public class InMemoryLinkRepositoryImpl implements LinkRepository {
         return link;
     }
 
-
     @Override
     public void delete(Link link) {
         storage.remove(link.getLinkId());

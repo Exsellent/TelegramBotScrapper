@@ -1,5 +1,14 @@
 package backend.academy.command;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.Mockito.doNothing;
+import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
+
 import backend.academy.bot.client.ScrapperApiClient;
 import backend.academy.bot.command.ConversationManager;
 import backend.academy.bot.command.ConversationState;
@@ -16,14 +25,6 @@ import org.junit.jupiter.api.Test;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyLong;
-import static org.mockito.Mockito.doNothing;
-import static org.mockito.Mockito.doThrow;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
 
 class TrackCommandTest {
 
@@ -48,7 +49,9 @@ class TrackCommandTest {
 
         SendMessage response = command.handle(update);
         assertNotNull(response, "Response should not be null");
-        assertEquals("Please enter the URL you want to track:", response.getParameters().get("text"));
+        assertEquals(
+                "Please enter the URL you want to track:",
+                response.getParameters().get("text"));
     }
 
     @Test
@@ -61,7 +64,9 @@ class TrackCommandTest {
 
         SendMessage response = command.handle(update);
         assertNotNull(response, "Response should not be null");
-        assertEquals("Enter tags for this link (optional, space-separated) or type 'skip':", response.getParameters().get("text"));
+        assertEquals(
+                "Enter tags for this link (optional, space-separated) or type 'skip':",
+                response.getParameters().get("text"));
     }
 
     @Test
@@ -78,7 +83,9 @@ class TrackCommandTest {
         SendMessage response = command.handle(update);
 
         assertNotNull(response, "Response should not be null");
-        assertEquals("Link successfully added with specified tags and filters!", response.getParameters().get("text"));
+        assertEquals(
+                "Link successfully added with specified tags and filters!",
+                response.getParameters().get("text"));
     }
 
     @Test
@@ -90,13 +97,15 @@ class TrackCommandTest {
         data.setTags(List.of("tag1"));
         when(conversationManager.getTrackingData(chatId)).thenReturn(data);
         doThrow(new LinkAlreadyAddedException("Link already tracked"))
-            .when(scrapperApiClient).addLink(anyLong(), any(AddLinkRequest.class));
+                .when(scrapperApiClient)
+                .addLink(anyLong(), any(AddLinkRequest.class));
 
         Update update = createUpdate(chatId, "user:alice");
         SendMessage response = command.handle(update);
 
         assertNotNull(response, "Response should not be null");
-        assertEquals("Error adding link. Please try again.", response.getParameters().get("text"));
+        assertEquals(
+                "Error adding link. Please try again.", response.getParameters().get("text"));
     }
 
     // Метод создания моков для Update

@@ -13,13 +13,16 @@ public class OpenTelemetryConfig {
 
     @Bean
     public OpenTelemetrySdk openTelemetrySdk() {
-        return OpenTelemetrySdk.builder().setTracerProvider(SdkTracerProvider.builder().build()).build();
+        return OpenTelemetrySdk.builder()
+                .setTracerProvider(SdkTracerProvider.builder().build())
+                .build();
     }
 
     @Bean
     public DisposableBean closeOpenTelemetryResources(OpenTelemetrySdk openTelemetrySdk) {
         return () -> {
-            CompletableResultCode result = openTelemetrySdk.getSdkTracerProvider().shutdown();
+            CompletableResultCode result =
+                    openTelemetrySdk.getSdkTracerProvider().shutdown();
             result.join(10, TimeUnit.SECONDS);
             if (!result.isSuccess()) {
                 System.err.println("OpenTelemetry shutdown timeout.");

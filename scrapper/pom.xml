@@ -193,12 +193,6 @@
     <build>
         <plugins>
             <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-compiler-plugin</artifactId>
-                <version>3.11.0</version>
-            </plugin>
-            <!-- To build OCI image: https://docs.spring.io/spring-boot/maven-plugin/build-image.html -->
-            <plugin>
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-maven-plugin</artifactId>
                 <version>3.4.2</version>
@@ -208,6 +202,7 @@
                 <artifactId>maven-compiler-plugin</artifactId>
                 <version>3.11.0</version>
                 <configuration>
+                    <release>23</release>
                     <compilerArgs>
                         <arg>-parameters</arg>
                     </compilerArgs>
@@ -218,8 +213,6 @@
                             <version>1.18.36</version>
                         </path>
                     </annotationProcessorPaths>
-                    <source>17</source>
-                    <target>17</target>
                 </configuration>
             </plugin>
         </plugins>

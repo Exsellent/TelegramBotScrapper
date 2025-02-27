@@ -1,5 +1,13 @@
 package backend.academy.scrapper.filter;
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.Mockito.anyInt;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+
 import backend.academy.scrapper.dto.ApiErrorResponse;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.servlet.FilterChain;
@@ -13,13 +21,6 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.http.HttpStatus;
-import static org.junit.Assert.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.mockito.Mockito.anyInt;
-import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.times;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
 public class RateLimitingFilterTest {
@@ -48,7 +49,7 @@ public class RateLimitingFilterTest {
         when(request.getRemoteAddr()).thenReturn("127.0.0.1");
 
         // Act
-        for (int i = 0; i < 50; i++) {  // Меньше лимита
+        for (int i = 0; i < 50; i++) { // Меньше лимита
             filter.doFilter(request, response, chain);
         }
 
@@ -66,7 +67,7 @@ public class RateLimitingFilterTest {
         when(response.getWriter()).thenReturn(pw);
 
         // Act
-        for (int i = 0; i < 101; i++) {  // Превышаем лимит
+        for (int i = 0; i < 101; i++) { // Превышаем лимит
             filter.doFilter(request, response, chain);
         }
 

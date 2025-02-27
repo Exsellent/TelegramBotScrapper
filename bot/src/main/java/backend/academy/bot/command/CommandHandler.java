@@ -27,7 +27,8 @@ public class CommandHandler {
 
         // Обработка неизвестной команды
         if (update.message().text().startsWith("/")) {
-            return new SendMessage(update.message().chat().id(), "Unknown command. Use /help to view the list of available commands.");
+            return new SendMessage(
+                    update.message().chat().id(), "Unknown command. Use /help to view the list of available commands.");
         }
 
         return null;

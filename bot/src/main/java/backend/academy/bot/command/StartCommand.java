@@ -36,12 +36,12 @@ public class StartCommand implements Command {
         Long chatId = update.message().chat().id();
         try {
             scrapperApiClient.registerChat(chatId);
-            LOGGER.info("Chat registration completed",
-                Map.of(
-                    "event", "registration",
-                    "chatId", chatId,
-                    "status", "success"
-                ));
+            LOGGER.info(
+                    "Chat registration completed",
+                    Map.of(
+                            "event", "registration",
+                            "chatId", chatId,
+                            "status", "success"));
 
             return new SendMessage(chatId, "Welcome!");
         } catch (ChatAlreadyRegisteredException e) {

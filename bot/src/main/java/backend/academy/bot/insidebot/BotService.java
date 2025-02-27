@@ -4,6 +4,7 @@ import jakarta.validation.constraints.NotNull;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.validation.annotation.Validated;
+import backend.academy.bot.configuration.BackoffSettings;
 
 @Configuration
 @ConfigurationProperties(prefix = "bot")
@@ -13,7 +14,7 @@ public class BotService {
     private RateLimiting rateLimiting = new RateLimiting();
 
     @NotNull
-    private Backoff backoff = new Backoff();
+    private BackoffSettings backoff = new BackoffSettings();
 
     public static class RateLimiting {
         private int capacity = 20;
@@ -45,54 +46,6 @@ public class BotService {
         }
     }
 
-    public static class Backoff {
-        private String strategy = "exponential";
-        private long initialDelay = 1000;
-        private double multiplier = 2.0;
-        private long increment = 1000;
-        private int maxAttempts = 3;
-
-        public String getStrategy() {
-            return strategy;
-        }
-
-        public void setStrategy(String strategy) {
-            this.strategy = strategy;
-        }
-
-        public long getInitialDelay() {
-            return initialDelay;
-        }
-
-        public void setInitialDelay(long initialDelay) {
-            this.initialDelay = initialDelay;
-        }
-
-        public double getMultiplier() {
-            return multiplier;
-        }
-
-        public void setMultiplier(double multiplier) {
-            this.multiplier = multiplier;
-        }
-
-        public long getIncrement() {
-            return increment;
-        }
-
-        public void setIncrement(long increment) {
-            this.increment = increment;
-        }
-
-        public int getMaxAttempts() {
-            return maxAttempts;
-        }
-
-        public void setMaxAttempts(int maxAttempts) {
-            this.maxAttempts = maxAttempts;
-        }
-    }
-
     public RateLimiting getRateLimiting() {
         return rateLimiting;
     }
@@ -101,11 +54,11 @@ public class BotService {
         this.rateLimiting = rateLimiting;
     }
 
-    public Backoff getBackoff() {
+    public BackoffSettings getBackoff() {
         return backoff;
     }
 
-    public void setBackoff(Backoff backoff) {
+    public void setBackoff(BackoffSettings backoff) {
         this.backoff = backoff;
     }
 }

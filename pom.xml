@@ -181,11 +181,11 @@
             <artifactId>wiremock-standalone</artifactId>
             <scope>test</scope>
         </dependency>
-<!--        <dependency>-->
-<!--            <groupId>io.github.cdimascio</groupId>-->
-<!--            <artifactId>java-dotenv</artifactId>-->
-<!--            <version>5.2.2</version>-->
-<!--        </dependency>-->
+        <!--        <dependency>-->
+        <!--            <groupId>io.github.cdimascio</groupId>-->
+        <!--            <artifactId>java-dotenv</artifactId>-->
+        <!--            <version>5.2.2</version>-->
+        <!--        </dependency>-->
 
     </dependencies>
 
@@ -344,11 +344,11 @@
                     <artifactId>maven-pmd-plugin</artifactId>
                     <version>${maven-pmd-plugin.version}</version>
                     <configuration>
-                        <targetJdk>${java.version}</targetJdk>
+                        <targetJdk>17</targetJdk> <!-- Или 21 -->
                         <printFailingErrors>true</printFailingErrors>
                         <linkXRef>false</linkXRef>
                         <rulesets>
-                            <ruleset>${project.basedir}/pmd.xml</ruleset>
+                            <ruleset>${maven.multiModuleProjectDirectory}/pmd.xml</ruleset>
                         </rulesets>
                     </configuration>
                     <dependencies>
@@ -363,13 +363,6 @@
                             <version>6.48.0</version>
                         </dependency>
                     </dependencies>
-                </plugin>
-                <plugin>
-                    <groupId>org.apache.maven.plugins</groupId>
-                    <artifactId>maven-surefire-plugin</artifactId>
-                    <configuration>
-                        <redirectTestOutputToFile>true</redirectTestOutputToFile>
-                    </configuration>
                 </plugin>
                 <plugin>
                     <groupId>org.codehaus.mojo</groupId>

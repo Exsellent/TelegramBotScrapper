@@ -25,7 +25,7 @@ public class BotApiController {
     }
 
     @PostMapping("/updates")
-    public ResponseEntity<?> postUpdate(@Valid @RequestBody LinkUpdateRequest linkUpdate) {  // @Valid добавлен
+    public ResponseEntity<?> postUpdate(@Valid @RequestBody LinkUpdateRequest linkUpdate) { // @Valid добавлен
         LOGGER.info("Received update: {}", linkUpdate);
 
         String messageText = String.format("%s\n\n%s", linkUpdate.getUrl(), linkUpdate.getDescription());

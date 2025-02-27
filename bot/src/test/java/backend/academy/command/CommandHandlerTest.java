@@ -1,5 +1,9 @@
 package backend.academy.command;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.mockito.Mockito.when;
+
 import backend.academy.bot.command.CommandHandler;
 import com.pengrad.telegrambot.model.Chat;
 import com.pengrad.telegrambot.model.Message;
@@ -8,9 +12,6 @@ import com.pengrad.telegrambot.request.SendMessage;
 import java.util.Collections;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.mockito.Mockito.when;
 
 public class CommandHandlerTest {
 
@@ -36,6 +37,9 @@ public class CommandHandlerTest {
         // Assert: Проверка результата
         assertNotNull(response, "Ответ не должен быть null");
         assertEquals(123L, response.getParameters().get("chat_id"), "ID чата должен совпадать");
-        assertEquals("Unknown command. Use /help to view the list of available commands.", response.getParameters().get("text"), "Текст сообщения должен быть корректным");
+        assertEquals(
+                "Unknown command. Use /help to view the list of available commands.",
+                response.getParameters().get("text"),
+                "Текст сообщения должен быть корректным");
     }
 }

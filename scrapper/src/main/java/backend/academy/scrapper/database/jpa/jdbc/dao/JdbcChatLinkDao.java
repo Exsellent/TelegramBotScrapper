@@ -30,8 +30,7 @@ public class JdbcChatLinkDao implements ChatLinkDao {
     @Transactional
     @Override
     public void remove(Long chatId, Long linkId) {
-        jdbcTemplate.update("DELETE FROM chat_link WHERE chat_id = ? AND link_id = ?",
-            chatId, linkId);
+        jdbcTemplate.update("DELETE FROM chat_link WHERE chat_id = ? AND link_id = ?", chatId, linkId);
     }
 
     @Override

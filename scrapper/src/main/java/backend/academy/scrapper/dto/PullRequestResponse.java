@@ -33,7 +33,6 @@ public class PullRequestResponse {
         return id;
     }
 
-
     public String getTitle() {
         return title;
     }
