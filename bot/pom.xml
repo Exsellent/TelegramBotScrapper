@@ -207,28 +207,6 @@
     <build>
         <finalName>link-tracker-bot</finalName>
         <plugins>
-            <!-- Плагин компиляции -->
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-compiler-plugin</artifactId>
-                <version>3.11.0</version>
-                <configuration>
-                    <compilerArgs>
-                        <arg>-parameters</arg>
-                    </compilerArgs>
-                    <annotationProcessorPaths>
-                        <path>
-                            <groupId>org.projectlombok</groupId>
-                            <artifactId>lombok</artifactId>
-                            <version>1.18.36</version>
-                        </path>
-                    </annotationProcessorPaths>
-                    <source>17</source>
-                    <target>17</target>
-                </configuration>
-            </plugin>
-
-            <!-- Spring Boot Maven Plugin для создания исполняемого JAR -->
             <plugin>
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-maven-plugin</artifactId>
@@ -237,7 +215,6 @@
                     <mainClass>backend.academy.bot.insidebot.BotApplication</mainClass>
                     <workingDirectory>${project.basedir}</workingDirectory>
                 </configuration>
-
                 <executions>
                     <execution>
                         <goals>
