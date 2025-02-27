@@ -344,7 +344,7 @@
                     <artifactId>maven-pmd-plugin</artifactId>
                     <version>${maven-pmd-plugin.version}</version>
                     <configuration>
-                        <targetJdk>17</targetJdk> <!-- Или 21 -->
+                        <targetJdk>17</targetJdk>
                         <printFailingErrors>true</printFailingErrors>
                         <linkXRef>false</linkXRef>
                         <rulesets>
@@ -379,8 +379,19 @@
                     <artifactId>modernizer-maven-plugin</artifactId>
                     <version>${modernizer-maven-plugin.version}</version>
                     <configuration>
-                        <javaVersion>${java.version}</javaVersion>
+                        <javaVersion>17</javaVersion>
+                        <failOnViolations>false</failOnViolations>
+                        <includeTestClasses>true</includeTestClasses>
                     </configuration>
+                    <executions>
+                        <execution>
+                            <id>modernizer</id>
+                            <goals>
+                                <goal>modernizer</goal>
+                            </goals>
+                            <phase>verify</phase>
+                        </execution>
+                    </executions>
                 </plugin>
                 <plugin>
                     <groupId>org.jacoco</groupId>

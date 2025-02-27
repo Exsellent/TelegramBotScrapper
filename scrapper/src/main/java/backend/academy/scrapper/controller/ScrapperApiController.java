@@ -52,29 +52,29 @@ public class ScrapperApiController {
     public ResponseEntity<ListLinksResponse> getAllLinks(@RequestHeader("Tg-Chat-Id") Long tgChatId) {
         Collection<ChatLinkDTO> chatLinks = chatLinkService.findAllLinksForChat(tgChatId);
         List<LinkResponse> links = chatLinks.stream()
-            .map(chatLink -> {
-                LinkDTO link = linkService.findById(chatLink.getLinkId());
-                return new LinkResponse(link.getLinkId(), link.getUrl(), link.getDescription());
-            })
-            .collect(Collectors.toList());
+                .map(chatLink -> {
+                    LinkDTO link = linkService.findById(chatLink.getLinkId());
+                    return new LinkResponse(link.getLinkId(), link.getUrl(), link.getDescription());
+                })
+                .collect(Collectors.toList());
         return ResponseEntity.ok(new ListLinksResponse(links, links.size()));
     }
 
     @PostMapping(
-        value = "/links",
-        consumes = MediaType.APPLICATION_JSON_VALUE,
-        produces = MediaType.APPLICATION_JSON_VALUE)
+            value = "/links",
+            consumes = MediaType.APPLICATION_JSON_VALUE,
+            produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<LinkResponse> addLink(
-        @RequestHeader("Tg-Chat-Id") Long tgChatId, @RequestBody @Valid AddLinkRequest addLinkRequest) {
+            @RequestHeader("Tg-Chat-Id") Long tgChatId, @RequestBody @Valid AddLinkRequest addLinkRequest) {
         LinkDTO addedLink = linkService.add(addLinkRequest.getLink(), addLinkRequest.getDescription());
         chatLinkService.addLinkToChat(tgChatId, addedLink.getLinkId());
         return ResponseEntity.ok(
-            new LinkResponse(addedLink.getLinkId(), addedLink.getUrl(), addedLink.getDescription()));
+                new LinkResponse(addedLink.getLinkId(), addedLink.getUrl(), addedLink.getDescription()));
     }
 
     @DeleteMapping("/links")
     public ResponseEntity<LinkResponse> removeLink(
-        @RequestHeader("Tg-Chat-Id") Long tgChatId, @RequestBody @Valid RemoveLinkRequest removeLinkRequest) {
+            @RequestHeader("Tg-Chat-Id") Long tgChatId, @RequestBody @Valid RemoveLinkRequest removeLinkRequest) {
         LinkDTO link = linkService.findByUrl(removeLinkRequest.getLink());
         chatLinkService.removeLinkFromChat(tgChatId, link.getLinkId());
         if (!chatLinkService.existsChatsForLink(link.getLinkId())) {
@@ -104,12 +104,12 @@ public class ScrapperApiController {
 
     public void sendUpdate(LinkUpdateRequest update) {
         gitHubWebClient
-            .post()
-            .uri("http://localhost:8080/api/updates")
-            .contentType(MediaType.APPLICATION_JSON)
-            .bodyValue(update)
-            .retrieve()
-            .toBodilessEntity()
-            .block();
+                .post()
+                .uri("http://localhost:8080/api/updates")
+                .contentType(MediaType.APPLICATION_JSON)
+                .bodyValue(update)
+                .retrieve()
+                .toBodilessEntity()
+                .block();
     }
 }

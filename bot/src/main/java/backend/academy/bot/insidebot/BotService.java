@@ -1,10 +1,10 @@
 package backend.academy.bot.insidebot;
 
+import backend.academy.bot.configuration.BackoffSettings;
 import jakarta.validation.constraints.NotNull;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.validation.annotation.Validated;
-import backend.academy.bot.configuration.BackoffSettings;
 
 @Configuration
 @ConfigurationProperties(prefix = "bot")

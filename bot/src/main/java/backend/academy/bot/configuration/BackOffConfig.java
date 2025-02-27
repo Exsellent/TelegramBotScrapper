@@ -30,12 +30,16 @@ public class BackOffConfig {
     @Bean
     @ConditionalOnProperty(name = "backoff.strategy", havingValue = "linear")
     public BackOffStrategy linearBackOffStrategy() {
-        return new LinearBackOff(backOffProperties.getSettings().getInitialDelay(), backOffProperties.getSettings().getIncrement());
+        return new LinearBackOff(
+                backOffProperties.getSettings().getInitialDelay(),
+                backOffProperties.getSettings().getIncrement());
     }
 
     @Bean
     @ConditionalOnProperty(name = "backoff.strategy", havingValue = "exponential")
     public BackOffStrategy exponentialBackOffStrategy() {
-        return new ExponentialBackOff(backOffProperties.getSettings().getInitialDelay(), backOffProperties.getSettings().getMultiplier());
+        return new ExponentialBackOff(
+                backOffProperties.getSettings().getInitialDelay(),
+                backOffProperties.getSettings().getMultiplier());
     }
 }
