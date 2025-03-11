@@ -16,10 +16,8 @@ public class ScrapperConfig {
 
     private StackOverflowCredentials stackOverflow;
 
-    // Конструктор (обязателен для работы Spring)
     public ScrapperConfig() {}
 
-    // Геттеры и сеттеры
     public String getDatabaseAccessType() {
         return databaseAccessType;
     }

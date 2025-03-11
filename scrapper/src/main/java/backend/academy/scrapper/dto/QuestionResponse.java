@@ -7,9 +7,11 @@ import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import lombok.ToString;
 
 @Getter
 @Setter
+@ToString
 @AllArgsConstructor
 @NoArgsConstructor
 @JsonIgnoreProperties(ignoreUnknown = true)
@@ -25,20 +27,4 @@ public class QuestionResponse {
 
     @JsonProperty("creation_date")
     private OffsetDateTime creationDate;
-
-    public Long getQuestionId() {
-        return questionId;
-    }
-
-    public String getTitle() {
-        return title;
-    }
-
-    public OffsetDateTime getLastActivityDate() {
-        return lastActivityDate;
-    }
-
-    public OffsetDateTime getCreationDate() {
-        return creationDate;
-    }
 }

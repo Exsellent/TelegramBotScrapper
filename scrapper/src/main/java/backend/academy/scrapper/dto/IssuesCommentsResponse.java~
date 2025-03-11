@@ -15,10 +15,10 @@ import lombok.ToString;
 @NoArgsConstructor
 @ToString
 @JsonIgnoreProperties(ignoreUnknown = true)
-public class PullRequestResponse {
-
-    @JsonProperty("title")
-    private String title;
+public class IssuesCommentsResponse implements Comment {
+    private String url;
+    private Long id;
+    private String body;
 
     @JsonProperty("created_at")
     private OffsetDateTime createdAt;
@@ -26,6 +26,26 @@ public class PullRequestResponse {
     @JsonProperty("updated_at")
     private OffsetDateTime updatedAt;
 
-    @JsonProperty("id")
-    private Long id;
+    public String getBody() {
+        return body;
+    }
+
+    public Long getId() {
+        return id;
+    }
+
+    @Override
+    public OffsetDateTime getCreatedAt() {
+        return createdAt;
+    }
+
+    @Override
+    public OffsetDateTime getUpdatedAt() {
+        return updatedAt;
+    }
+
+    @Override
+    public String getCommentDescription() {
+        return body;
+    }
 }

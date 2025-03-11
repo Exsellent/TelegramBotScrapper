@@ -1,4 +1,4 @@
-package backend.academy.scrapper.scheduler;
+package backend.academy.scrapper.database.scheduler;
 
 import backend.academy.scrapper.client.BotApiClient;
 import backend.academy.scrapper.configuration.ApplicationConfig;

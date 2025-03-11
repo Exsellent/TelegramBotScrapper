@@ -1,9 +1,9 @@
 app:
-  telegram-token: ${APP_TELEGRAM_TOKEN} #"${TELEGRAM_TOKEN}"
+  telegramToken: ${APP_TELEGRAM_TOKEN} #"${TELEGRAM_TOKEN}"
 
 scrapper:
   api:
-    base-url: http://localhost:8080/api  # Исправлено на base-url
+    base-url: http://localhost:8080/api
 
 spring:
   config:
@@ -34,14 +34,19 @@ rate-limiting:
   refill-duration: 60
 
 backoff:
-  strategy: exponential
-  initialDelay: 1000
-  multiplier: 2.0
-  increment: 1000
-  maxAttempts: 1000
-  retryable-status-codes: [ 500, 502, 503, 504 ]
+  settings:
+    maxAttempts: 1000
+    initialDelay: 1000
+    multiplier: 2.0
+    increment: 1000
+    strategy: exponential
+  retryableStatusCodes: [500, 502, 503, 504]
+
+
 
 
 conversation:
   timeout:
     minutes: 15
+
+spring.autoconfigure.exclude: org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration

@@ -1,32 +1,16 @@
 package backend.academy.bot.dto;
 
+import lombok.AllArgsConstructor;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
+import lombok.ToString;
+
+@Getter
+@Setter
+@ToString
+@NoArgsConstructor
+@AllArgsConstructor
 public class RemoveLinkRequest {
-    private final String link;
-
-    public RemoveLinkRequest(String link) {
-        this.link = link;
-    }
-
-    public String getLink() {
-        return link;
-    }
-
-    public static Builder builder() {
-        return new Builder();
-    }
-
-    public static class Builder {
-        private String link;
-
-        private Builder() {}
-
-        public Builder link(String link) {
-            this.link = link;
-            return this;
-        }
-
-        public RemoveLinkRequest build() {
-            return new RemoveLinkRequest(this.link);
-        }
-    }
+    private String link;
 }

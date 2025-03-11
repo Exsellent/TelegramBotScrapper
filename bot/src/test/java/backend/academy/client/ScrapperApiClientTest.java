@@ -24,7 +24,8 @@ class ScrapperApiClientTest {
     @Test
     void testGetAllLinks_Success() {
         // Arrange
-        ListLinksResponse mockResponse = new ListLinksResponse(Collections.emptyList());
+        ListLinksResponse mockResponse = mock(ListLinksResponse.class);
+        when(mockResponse.getLinks()).thenReturn(Collections.emptyList());
         ScrapperApiClient spyClient = Mockito.spy(scrapperApiClient);
         doReturn(mockResponse).when(spyClient).getAllLinks(anyLong());
 
@@ -33,6 +34,6 @@ class ScrapperApiClientTest {
 
         // Assert
         assertNotNull(response);
-        assertTrue(response.links().isEmpty());
+        assertTrue(response.getLinks().isEmpty());
     }
 }

@@ -6,28 +6,18 @@ import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import lombok.ToString;
 
 @Getter
 @Setter
-@AllArgsConstructor
+@ToString
 @NoArgsConstructor
+@AllArgsConstructor
 public class CombinedStackOverflowInfo {
 
     private QuestionResponse question;
     private List<AnswerResponse> answers;
     private OffsetDateTime latestUpdate;
-
-    public QuestionResponse getQuestion() {
-        return question;
-    }
-
-    public List<AnswerResponse> getAnswers() {
-        return answers;
-    }
-
-    public OffsetDateTime getLatestUpdate() {
-        return latestUpdate;
-    }
 
     public CombinedStackOverflowInfo(QuestionResponse question, List<AnswerResponse> answers) {
         this.question = question;

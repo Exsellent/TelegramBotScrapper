@@ -1,7 +1,7 @@
 package backend.academy.scrapper.client;
 
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.mock;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.when;
 
 import backend.academy.scrapper.dto.LinkUpdateRequest;
@@ -10,11 +10,13 @@ import org.junit.jupiter.api.Test;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 import org.springframework.http.MediaType;
-import org.springframework.web.reactive.function.client.ClientResponse;
 import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.publisher.Mono;
 
 class BotApiClientTest {
+
+    @Mock
+    private WebClient.Builder webClientBuilderMock;
 
     @Mock
     private WebClient webClientMock;
@@ -37,19 +39,20 @@ class BotApiClientTest {
     void setUp() {
         MockitoAnnotations.openMocks(this);
 
-        // Настраиваем цепочку моков
+        // Настраиваем мок WebClient.Builder
+        when(webClientBuilderMock.baseUrl(anyString())).thenReturn(webClientBuilderMock);
+        when(webClientBuilderMock.build()).thenReturn(webClientMock);
+
+        // Настраиваем цепочку моков для WebClient
         when(webClientMock.post()).thenReturn(requestBodyUriSpecMock);
         when(requestBodyUriSpecMock.uri("/updates")).thenReturn(requestBodySpecMock);
         when(requestBodySpecMock.contentType(MediaType.APPLICATION_JSON)).thenReturn(requestBodySpecMock);
         when(requestBodySpecMock.bodyValue(any(LinkUpdateRequest.class))).thenReturn(requestHeadersSpecMock);
         when(requestHeadersSpecMock.retrieve()).thenReturn(responseSpecMock);
-
-        // Создаем мок для ClientResponse
-        ClientResponse clientResponseMock = mock(ClientResponse.class);
         when(responseSpecMock.toBodilessEntity()).thenReturn(Mono.empty());
 
-        // Создаем тестируемый объект с моком
-        botApiClient = new BotApiClient(webClientMock);
+        // Создаем тестируемый объект с мокнутым WebClient.Builder
+        botApiClient = new BotApiClient(webClientBuilderMock);
     }
 
     @Test

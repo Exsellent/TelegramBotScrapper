@@ -9,11 +9,13 @@ import jakarta.persistence.Table;
 import java.time.LocalDateTime;
 import lombok.Getter;
 import lombok.Setter;
+import lombok.ToString;
 
 @Entity
 @Table(name = "link")
 @Getter
 @Setter
+@ToString
 public class Link {
 
     @Id
@@ -35,52 +37,4 @@ public class Link {
 
     @Column(name = "last_update_time")
     private LocalDateTime lastUpdateTime;
-
-    public Long getLinkId() {
-        return linkId;
-    }
-
-    public void setLinkId(Long linkId) {
-        this.linkId = linkId;
-    }
-
-    public String getUrl() {
-        return url;
-    }
-
-    public void setUrl(String url) {
-        this.url = url;
-    }
-
-    public String getDescription() {
-        return description;
-    }
-
-    public void setDescription(String description) {
-        this.description = description;
-    }
-
-    public LocalDateTime getCreatedAt() {
-        return createdAt;
-    }
-
-    public void setCreatedAt(LocalDateTime createdAt) {
-        this.createdAt = createdAt;
-    }
-
-    public LocalDateTime getLastCheckTime() {
-        return lastCheckTime;
-    }
-
-    public void setLastCheckTime(LocalDateTime lastCheckTime) {
-        this.lastCheckTime = lastCheckTime;
-    }
-
-    public LocalDateTime getLastUpdateTime() {
-        return lastUpdateTime;
-    }
-
-    public void setLastUpdateTime(LocalDateTime lastUpdateTime) {
-        this.lastUpdateTime = lastUpdateTime;
-    }
 }

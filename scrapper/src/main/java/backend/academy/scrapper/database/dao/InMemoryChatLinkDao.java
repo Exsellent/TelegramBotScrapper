@@ -1,8 +1,9 @@
-package backend.academy.scrapper.database.jpa.jdbc.dao;
+package backend.academy.scrapper.database.dao;
 
 import backend.academy.scrapper.dao.ChatLinkDao;
 import backend.academy.scrapper.dto.ChatLinkDTO;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -11,7 +12,7 @@ import org.springframework.stereotype.Repository;
 @Repository
 @ConditionalOnProperty(name = "app.database-access-type", havingValue = "IN_MEMORY", matchIfMissing = true)
 public class InMemoryChatLinkDao implements ChatLinkDao {
-    private final ConcurrentHashMap<Long, ConcurrentHashMap<Long, ChatLinkDTO>> chatLinks = new ConcurrentHashMap<>();
+    private final Map<Long, Map<Long, ChatLinkDTO>> chatLinks = new ConcurrentHashMap<>();
 
     @Override
     public void add(ChatLinkDTO chatLink) {

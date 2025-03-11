@@ -1,9 +1,10 @@
-package backend.academy.scrapper.database.jpa.jdbc.dao;
+package backend.academy.scrapper.database.dao;
 
 import backend.academy.scrapper.dao.LinkDao;
 import backend.academy.scrapper.dto.LinkDTO;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -12,7 +13,7 @@ import org.springframework.stereotype.Repository;
 @Repository
 @ConditionalOnProperty(name = "app.database-access-type", havingValue = "IN_MEMORY", matchIfMissing = true)
 public class InMemoryLinkDao implements LinkDao {
-    private final ConcurrentHashMap<Long, LinkDTO> links = new ConcurrentHashMap<>();
+    private final Map<Long, LinkDTO> links = new ConcurrentHashMap<>();
     private long idCounter = 1;
 
     @Override

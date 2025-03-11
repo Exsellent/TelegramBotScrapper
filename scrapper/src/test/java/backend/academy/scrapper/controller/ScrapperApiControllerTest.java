@@ -1,10 +1,19 @@
 package backend.academy.scrapper.controller;
 
-import static org.mockito.Mockito.*;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-import backend.academy.scrapper.dto.*;
+import backend.academy.scrapper.dto.AddLinkRequest;
+import backend.academy.scrapper.dto.ChatLinkDTO;
+import backend.academy.scrapper.dto.LinkDTO;
+import backend.academy.scrapper.dto.RemoveLinkRequest;
 import backend.academy.scrapper.service.ChatLinkService;
 import backend.academy.scrapper.service.ChatService;
 import backend.academy.scrapper.service.LinkService;
@@ -124,8 +133,8 @@ public class ScrapperApiControllerTest {
         when(linkService.findByUrl(testUrl)).thenReturn(testLink);
         when(chatLinkService.existsChatsForLink(testLinkId)).thenReturn(false);
 
-        RemoveLinkRequest removeLinkRequest =
-                RemoveLinkRequest.builder().link(testUrl).build();
+        // Создание RemoveLinkRequest вручную
+        RemoveLinkRequest removeLinkRequest = new RemoveLinkRequest(testUrl);
 
         mockMvc.perform(delete("/api/links")
                         .header("Tg-Chat-Id", testChatId)

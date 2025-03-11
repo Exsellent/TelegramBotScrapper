@@ -19,11 +19,6 @@ public class BotApiClient {
         this.webClient = webClientBuilder.baseUrl("http://localhost:8080/api").build();
     }
 
-    // Конструктор для тестирования
-    public BotApiClient(WebClient webClient) {
-        this.webClient = webClient;
-    }
-
     public Mono<Void> postUpdate(LinkUpdateRequest update) {
         return webClient
                 .post()

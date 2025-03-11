@@ -28,20 +28,4 @@ public class AnswerResponse {
 
     @JsonProperty("question_id")
     private Long questionId;
-
-    public Long getAnswerId() {
-        return answerId;
-    }
-
-    public OffsetDateTime getLastActivityDate() {
-        return lastActivityDate;
-    }
-
-    public OffsetDateTime getCreationDate() {
-        return creationDate;
-    }
-
-    public Long getQuestionId() {
-        return questionId;
-    }
 }

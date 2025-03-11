@@ -10,6 +10,7 @@ import static org.mockito.Mockito.when;
 
 import backend.academy.scrapper.client.BotApiClient;
 import backend.academy.scrapper.configuration.ApplicationConfig;
+import backend.academy.scrapper.database.scheduler.LinkUpdaterScheduler;
 import backend.academy.scrapper.dto.ChatLinkDTO;
 import backend.academy.scrapper.dto.CombinedPullRequestInfo;
 import backend.academy.scrapper.dto.IssuesCommentsResponse;
