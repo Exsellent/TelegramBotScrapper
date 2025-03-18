@@ -7,6 +7,11 @@ import org.springframework.validation.annotation.Validated;
 
 @Validated
 @ConfigurationProperties(prefix = "app", ignoreUnknownFields = false)
-public record ApplicationConfig(@NotNull Scheduler scheduler, AccessType databaseAccessType) {
+public record ApplicationConfig(
+        @NotNull Scheduler scheduler,
+        AccessType databaseAccessType,
+        String migrationsDir,
+        @NotNull Integer checkIntervalMinutes // Добавляем новое поле
+        ) {
     public record Scheduler(boolean enable, @NotNull Duration interval, @NotNull Duration forceCheckDelay) {}
 }
