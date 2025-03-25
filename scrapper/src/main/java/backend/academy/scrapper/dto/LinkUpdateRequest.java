@@ -1,4 +1,4 @@
-package backend.academy.scrapper.repository.repository.dto;
+package backend.academy.scrapper.dto;
 
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;

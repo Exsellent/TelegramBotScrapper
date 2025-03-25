@@ -1,4 +1,4 @@
-package backend.academy.scrapper.repository.repository.dto;
+package backend.academy.scrapper.dto;
 
 import java.util.List;
 import lombok.AllArgsConstructor;

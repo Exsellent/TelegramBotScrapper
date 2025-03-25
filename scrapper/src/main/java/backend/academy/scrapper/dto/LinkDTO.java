@@ -1,4 +1,4 @@
-package backend.academy.scrapper.repository.repository.dto;
+package backend.academy.scrapper.dto;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -12,20 +12,21 @@ import lombok.Setter;
 public class LinkDTO {
     private Long linkId;
     private String url;
+    private String description;
     private LocalDateTime createdAt;
     private LocalDateTime lastCheckTime;
     private LocalDateTime lastUpdateTime;
     private List<String> tags;
 
-       @Override
+    @Override
     public String toString() {
-        return "LinkDTO(" +
-            "linkId=" + linkId +
-            ", url=" + url +
-            ", createdAt=" + createdAt +
-            ", lastCheckTime=" + lastCheckTime +
-            ", lastUpdateTime=" + lastUpdateTime +
-            ", tags=" + tags +
-            ')';
+        return "LinkDTO(" + "linkId="
+                + linkId + ", url="
+                + url + ", description="
+                + description + ", createdAt="
+                + createdAt + ", lastCheckTime="
+                + lastCheckTime + ", lastUpdateTime="
+                + lastUpdateTime + ", tags="
+                + tags + ')';
     }
 }
