@@ -4,19 +4,19 @@ import backend.academy.scrapper.domain.Link;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
-public interface LinkRepository {
-    Link save(Link link);
-
-    void delete(Link link);
-
+public interface LinkRepository extends JpaRepository<Link, Long> {
     Optional<Link> findByUrl(String url);
-
-    List<Link> findByLastCheckTimeBeforeOrLastCheckTimeIsNull(LocalDateTime dateTime);
 
     boolean existsByUrl(String url);
 
-    Optional<Link> findById(Long id);
+    @Query("SELECT l FROM Link l WHERE l.lastCheckTime IS NULL OR l.lastCheckTime < :sinceTime")
+    List<Link> findByLastCheckTimeBeforeOrLastCheckTimeIsNull(
+            @Param("sinceTime") LocalDateTime sinceTime, Pageable pageable);
 
-    List<Link> findAll();
+    List<Link> findByTags_Name(String tagName); // метод для поиска по тегам
 }
