@@ -1,4 +1,4 @@
-package backend.academy.scrapper.dto;
+package backend.academy.scrapper.repository.repository.dto;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
@@ -20,6 +20,9 @@ public class IssuesCommentsResponse implements Comment {
     private Long id;
     private String body;
 
+    @JsonProperty("user") // Добавлено: маппинг поля "user" из JSON
+    private User user; // Добавлено
+
     @JsonProperty("created_at")
     private OffsetDateTime createdAt;
 
@@ -29,5 +32,11 @@ public class IssuesCommentsResponse implements Comment {
     @Override
     public String getCommentDescription() {
         return body;
+    }
+
+    // Добавлена реализация метода из интерфейса Comment
+    @Override
+    public User getUser() {
+        return user;
     }
 }

@@ -1,4 +1,4 @@
-package backend.academy.scrapper.dto;
+package backend.academy.scrapper.repository.repository.dto;
 
 import java.time.LocalDateTime;
 import lombok.Getter;

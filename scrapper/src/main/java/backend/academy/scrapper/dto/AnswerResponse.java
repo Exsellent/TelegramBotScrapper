@@ -1,4 +1,4 @@
-package backend.academy.scrapper.dto;
+package backend.academy.scrapper.repository.repository.dto;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
@@ -28,4 +28,10 @@ public class AnswerResponse {
 
     @JsonProperty("question_id")
     private Long questionId;
+
+    @JsonProperty("owner")
+    private User owner;
+
+    @JsonProperty("body")
+    private String body;
 }

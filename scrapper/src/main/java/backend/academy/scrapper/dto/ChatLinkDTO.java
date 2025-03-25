@@ -1,22 +1,21 @@
-package backend.academy.scrapper.dto;
+package backend.academy.scrapper.repository.repository.dto;
 
 import java.time.LocalDateTime;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
-import lombok.ToString;
+import lombok.Setter;
 
 @Getter
-@ToString
+@Setter
 @AllArgsConstructor
 public class ChatLinkDTO {
-    private final Long chatId;
-    private final Long linkId;
-    private final LocalDateTime sharedAt;
+    private Long chatId;
+    private Long linkId;
+    private LocalDateTime sharedAt;
 
-    // Дополнительный конструктор, если `sharedAt` можно оставить текущим временем
     public ChatLinkDTO(Long chatId, Long linkId) {
         this.chatId = chatId;
         this.linkId = linkId;
-        this.sharedAt = LocalDateTime.now(); // Устанавливаем текущее время по умолчанию
+        this.sharedAt = LocalDateTime.now();
     }
 }

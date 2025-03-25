@@ -1,4 +1,4 @@
-package backend.academy.scrapper.dto;
+package backend.academy.scrapper.repository.repository.dto;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
@@ -28,4 +28,7 @@ public class PullRequestResponse {
 
     @JsonProperty("id")
     private Long id;
+
+    @JsonProperty("user")
+    private User user;
 }

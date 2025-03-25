@@ -1,4 +1,4 @@
-package backend.academy.scrapper.dto;
+package backend.academy.scrapper.repository.repository.dto;
 
 import java.util.List;
 import lombok.AllArgsConstructor;
@@ -14,6 +14,7 @@ import lombok.ToString;
 @AllArgsConstructor
 public class CombinedPullRequestInfo {
     private String title;
+    private PullRequestResponse pullRequest;
     private List<IssuesCommentsResponse> issueComments;
     private List<PullCommentsResponse> pullComments;
 }

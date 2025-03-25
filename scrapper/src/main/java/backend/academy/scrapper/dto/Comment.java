@@ -1,4 +1,4 @@
-package backend.academy.scrapper.dto;
+package backend.academy.scrapper.repository.repository.dto;
 
 import java.time.OffsetDateTime;
 
@@ -9,4 +9,6 @@ public interface Comment {
     OffsetDateTime getCreatedAt();
 
     OffsetDateTime getUpdatedAt();
+
+    User getUser();
 }
