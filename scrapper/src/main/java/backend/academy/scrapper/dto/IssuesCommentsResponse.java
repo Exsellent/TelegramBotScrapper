@@ -21,7 +21,7 @@ public class IssuesCommentsResponse implements Comment {
     private String body;
 
     @JsonProperty("user") // Добавлено: маппинг поля "user" из JSON
-    private User user; // Добавлено
+    private User user;
 
     @JsonProperty("created_at")
     private OffsetDateTime createdAt;
