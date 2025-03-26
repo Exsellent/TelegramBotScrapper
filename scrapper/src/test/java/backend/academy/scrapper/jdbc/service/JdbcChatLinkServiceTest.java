@@ -85,7 +85,7 @@ public class JdbcChatLinkServiceTest {
         LOGGER.info("Applying Liquibase migrations...");
         try {
             Database database = DatabaseFactory.getInstance()
-                .findCorrectDatabaseImplementation(new JdbcConnection(postgres.createConnection("")));
+                    .findCorrectDatabaseImplementation(new JdbcConnection(postgres.createConnection("")));
 
             // Поднимаемся на уровень корня проекта из модуля scrapper
             File scrapperDir = new File(System.getProperty("user.dir"));
@@ -99,7 +99,7 @@ public class JdbcChatLinkServiceTest {
             }
 
             Liquibase liquibase = new Liquibase(
-                "migrations/db/changelog-master.xml", new FileSystemResourceAccessor(projectRoot), database);
+                    "migrations/db/changelog-master.xml", new FileSystemResourceAccessor(projectRoot), database);
             liquibase.update(new Contexts());
             LOGGER.info("Liquibase migrations applied successfully.");
         } catch (Exception e) {

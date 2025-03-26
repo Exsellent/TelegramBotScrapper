@@ -1,5 +1,9 @@
 package backend.academy.scrapper.jdbc.service;
 
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
 import backend.academy.scrapper.dao.ChatDao;
 import backend.academy.scrapper.database.jdbc.service.JdbcChatService;
 import backend.academy.scrapper.dto.ChatDTO;
@@ -26,9 +30,6 @@ import org.springframework.transaction.annotation.Transactional;
 import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 
 @SpringBootTest(properties = {"app.database-access-type=jdbc"})
 @Testcontainers

@@ -1,5 +1,10 @@
 package backend.academy.scrapper.jpa.service;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
 import backend.academy.scrapper.database.dao.jpa.JpaChatDao;
 import backend.academy.scrapper.database.dao.jpa.JpaChatLinkDao;
 import backend.academy.scrapper.database.dao.jpa.JpaLinkDao;
@@ -33,10 +38,6 @@ import org.springframework.transaction.annotation.Transactional;
 import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 
 @SpringBootTest(properties = {"app.database-access-type=jpa"})
 @Testcontainers

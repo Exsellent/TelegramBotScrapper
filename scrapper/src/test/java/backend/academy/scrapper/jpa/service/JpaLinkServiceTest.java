@@ -1,5 +1,7 @@
 package backend.academy.scrapper.jpa.service;
 
+import static org.junit.jupiter.api.Assertions.*;
+
 import backend.academy.scrapper.database.dao.jpa.JpaChatDao;
 import backend.academy.scrapper.database.dao.jpa.JpaLinkDao;
 import backend.academy.scrapper.dto.LinkDTO;
@@ -7,6 +9,9 @@ import backend.academy.scrapper.exception.LinkAlreadyAddedException;
 import backend.academy.scrapper.exception.LinkNotFoundException;
 import backend.academy.scrapper.service.LinkService;
 import jakarta.persistence.EntityManager;
+import java.io.File;
+import java.time.LocalDateTime;
+import java.util.Collection;
 import liquibase.Contexts;
 import liquibase.Liquibase;
 import liquibase.database.Database;
@@ -26,12 +31,6 @@ import org.springframework.transaction.annotation.Transactional;
 import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
-
-import java.io.File;
-import java.time.LocalDateTime;
-import java.util.Collection;
-
-import static org.junit.jupiter.api.Assertions.*;
 
 @SpringBootTest(properties = {"app.database-access-type=jpa"})
 @Testcontainers
