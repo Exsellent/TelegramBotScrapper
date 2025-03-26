@@ -1,7 +1,5 @@
 package backend.academy.scrapper.jpa.service;
 
-import static org.junit.jupiter.api.Assertions.*;
-
 import backend.academy.scrapper.database.dao.jpa.JpaChatDao;
 import backend.academy.scrapper.database.dao.jpa.JpaLinkDao;
 import backend.academy.scrapper.dto.LinkDTO;
@@ -9,9 +7,6 @@ import backend.academy.scrapper.exception.LinkAlreadyAddedException;
 import backend.academy.scrapper.exception.LinkNotFoundException;
 import backend.academy.scrapper.service.LinkService;
 import jakarta.persistence.EntityManager;
-import java.io.File;
-import java.time.LocalDateTime;
-import java.util.Collection;
 import liquibase.Contexts;
 import liquibase.Liquibase;
 import liquibase.database.Database;
@@ -31,6 +26,12 @@ import org.springframework.transaction.annotation.Transactional;
 import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
+
+import java.io.File;
+import java.time.LocalDateTime;
+import java.util.Collection;
+
+import static org.junit.jupiter.api.Assertions.*;
 
 @SpringBootTest(properties = {"app.database-access-type=jpa"})
 @Testcontainers
@@ -77,13 +78,14 @@ public class JpaLinkServiceTest {
         Database database = DatabaseFactory.getInstance()
                 .findCorrectDatabaseImplementation(new JdbcConnection(postgres.createConnection("")));
 
-        File projectRoot = new File("C:/Java/IntelIDEA/java-Exsellent");
+        File scrapperDir = new File(System.getProperty("user.dir"));
+        File projectRoot = scrapperDir.getParentFile() != null ? scrapperDir.getParentFile() : scrapperDir;
+        File changelogFile = new File(projectRoot, "migrations/db/changelog-master.xml");
         if (!projectRoot.exists()) {
             LOGGER.error("Project root directory does not exist: {}", projectRoot.getAbsolutePath());
             throw new IllegalStateException("Project root not found");
         }
 
-        File changelogFile = new File(projectRoot, "migrations/db/changelog-master.xml");
         LOGGER.info("Changelog file exists: {}", changelogFile.exists());
         if (!changelogFile.exists()) {
             LOGGER.error("Changelog file not found at: {}", changelogFile.getAbsolutePath());

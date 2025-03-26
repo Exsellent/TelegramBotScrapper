@@ -85,23 +85,21 @@ public class JdbcChatLinkServiceTest {
         LOGGER.info("Applying Liquibase migrations...");
         try {
             Database database = DatabaseFactory.getInstance()
-                    .findCorrectDatabaseImplementation(new JdbcConnection(postgres.createConnection("")));
+                .findCorrectDatabaseImplementation(new JdbcConnection(postgres.createConnection("")));
 
-            File projectRoot = new File("C:/Java/IntelIDEA/java-Exsellent");
-            if (!projectRoot.exists()) {
-                LOGGER.error("Project root directory does not exist: {}", projectRoot.getAbsolutePath());
-                throw new IllegalStateException("Project root not found");
-            }
-
+            // Поднимаемся на уровень корня проекта из модуля scrapper
+            File scrapperDir = new File(System.getProperty("user.dir"));
+            File projectRoot = scrapperDir.getParentFile() != null ? scrapperDir.getParentFile() : scrapperDir;
             File changelogFile = new File(projectRoot, "migrations/db/changelog-master.xml");
-            LOGGER.info("Changelog file exists: {}", changelogFile.exists());
+
+            LOGGER.info("Looking for changelog file at: {}", changelogFile.getAbsolutePath());
             if (!changelogFile.exists()) {
                 LOGGER.error("Changelog file not found at: {}", changelogFile.getAbsolutePath());
                 throw new IllegalStateException("Changelog file not found");
             }
 
             Liquibase liquibase = new Liquibase(
-                    "migrations/db/changelog-master.xml", new FileSystemResourceAccessor(projectRoot), database);
+                "migrations/db/changelog-master.xml", new FileSystemResourceAccessor(projectRoot), database);
             liquibase.update(new Contexts());
             LOGGER.info("Liquibase migrations applied successfully.");
         } catch (Exception e) {

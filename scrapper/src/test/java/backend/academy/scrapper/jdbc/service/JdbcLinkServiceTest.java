@@ -1,7 +1,5 @@
 package backend.academy.scrapper.jdbc.service;
 
-import static org.junit.jupiter.api.Assertions.*;
-
 import backend.academy.scrapper.database.jdbc.service.JdbcLinkService;
 import backend.academy.scrapper.dto.LinkDTO;
 import backend.academy.scrapper.exception.LinkAlreadyAddedException;
@@ -29,6 +27,11 @@ import org.springframework.transaction.annotation.Transactional;
 import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 @SpringBootTest(properties = {"app.database-access-type=jdbc"})
 @Testcontainers
@@ -69,13 +72,14 @@ public class JdbcLinkServiceTest {
         Database database = DatabaseFactory.getInstance()
                 .findCorrectDatabaseImplementation(new JdbcConnection(postgres.createConnection("")));
 
-        File projectRoot = new File("C:/Java/IntelIDEA/java-Exsellent");
+        File scrapperDir = new File(System.getProperty("user.dir"));
+        File projectRoot = scrapperDir.getParentFile() != null ? scrapperDir.getParentFile() : scrapperDir;
+        File changelogFile = new File(projectRoot, "migrations/db/changelog-master.xml");
         if (!projectRoot.exists()) {
             LOGGER.error("Project root directory does not exist: {}", projectRoot.getAbsolutePath());
             throw new IllegalStateException("Project root not found");
         }
 
-        File changelogFile = new File(projectRoot, "migrations/db/changelog-master.xml");
         LOGGER.info("Changelog file exists: {}", changelogFile.exists());
         if (!changelogFile.exists()) {
             LOGGER.error("Changelog file not found at: {}", changelogFile.getAbsolutePath());
