@@ -35,4 +35,16 @@ public class GitHubLinkExtractor {
         }
         throw new IllegalArgumentException(INVALID_GITHUB_URL + url);
     }
+
+    public static int extractIssueId(String url) {
+        String[] parts = url.split("/");
+        if (parts.length > 6 && "issues".equals(parts[5])) {
+            try {
+                return Integer.parseInt(parts[6]);
+            } catch (NumberFormatException e) {
+                throw new IllegalArgumentException("Issue ID is not a valid number in URL: " + url);
+            }
+        }
+        throw new IllegalArgumentException(INVALID_GITHUB_URL + url);
+    }
 }

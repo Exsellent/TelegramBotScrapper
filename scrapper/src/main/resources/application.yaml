@@ -1,14 +1,15 @@
 app:
+  check-interval-minutes: 5
   scheduler:
     enable: true
     interval: PT10S
     force-check-delay: PT10S
-  database-access-type: IN_MEMORY
+  database-access-type: JDBC # или JPA
+  migrations-dir: classpath:migrations
 
 bot:
   api:
     baseurl: ${BOT_API_BASEURL:http://localhost:8080}
-  database-access-type: IN_MEMORY
   github-token: ${GITHUB_TOKEN:ghp_PUBLICTOKEN1234567890EXAMPLE}
   stackoverflow:
     key: ${STACKOVERFLOW_KEY:PUBLIC_STACKOVERFLOW_KEY}
@@ -17,30 +18,32 @@ bot:
 server:
   port: 8080
   error:
-  include-message: true
-  include-binding-errors: true
-  include-stacktrace: true
-  include-exception: true
-
-
+    include-message: ALWAYS
+    include-binding-errors: ALWAYS
+    include-stacktrace: ALWAYS
+    include-exception: true
 
 spring:
-  web:
-    server:
-      port-auto-increment: true
-jackson:
-  deserialization:
-    fail-on-unknown-properties: false
-  serialization:
-    write-dates-as-timestamps: false
-
+  datasource:
+    url: jdbc:postgresql://localhost:5432/scrapper
+    username: postgres
+    password: ${POSTGRES_PASSWORD:default_password}
+    driver-class-name: org.postgresql.Driver
+  jpa:
+    hibernate:
+      ddl-auto: none # Отключаем автоматическое создание схемы Hibernate
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+  liquibase:
+    enabled: false
+  jackson:
+    deserialization:
+      fail-on-unknown-properties: false
+    serialization:
+      write-dates-as-timestamps: false
   application:
     name: scrapper
-  autoconfigure:
-    exclude:
-      - org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration
-      - org.springframework.boot.autoconfigure.orm.jpa.HibernateJpaAutoConfiguration
-      - org.springframework.boot.autoconfigure.jdbc.DataSourceTransactionManagerAutoConfiguration
   main:
     allow-bean-definition-overriding: true
 
@@ -53,7 +56,6 @@ management:
   endpoint:
     health:
       show-details: always
-
 
 logging:
   config: classpath:log4j2-plain.xml

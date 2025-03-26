@@ -6,9 +6,7 @@ import backend.academy.scrapper.dto.PullRequestResponse;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
-/**
- * Интерфейс клиента для работы с GitHub API.
- */
+/** Интерфейс клиента для работы с GitHub API. */
 public interface GitHubClient {
 
     /**
@@ -51,8 +49,6 @@ public interface GitHubClient {
      */
     Flux<PullCommentsResponse> fetchPullComments(String owner, String repo, int pullNumber);
 
-    /**
-     * Очищает кэши клиента.
-     */
+    /** Очищает кэши клиента. */
     void clearCaches();
 }

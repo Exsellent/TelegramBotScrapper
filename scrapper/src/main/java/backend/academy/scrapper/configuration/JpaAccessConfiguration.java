@@ -3,14 +3,13 @@ package backend.academy.scrapper.configuration;
 import backend.academy.scrapper.client.BotApiClient;
 import backend.academy.scrapper.client.github.GitHubClient;
 import backend.academy.scrapper.client.stackoverflow.StackOverflowClient;
+import backend.academy.scrapper.dao.LinkDao;
 import backend.academy.scrapper.database.jpa.service.JpaChatLinkService;
 import backend.academy.scrapper.database.jpa.service.JpaChatService;
-import backend.academy.scrapper.database.jpa.service.OrmLinkService;
+import backend.academy.scrapper.database.jpa.service.JpaLinkService;
 import backend.academy.scrapper.database.scheduler.LinkUpdaterScheduler;
 import backend.academy.scrapper.repository.repository.ChatLinkRepository;
 import backend.academy.scrapper.repository.repository.ChatRepository;
-import backend.academy.scrapper.repository.repository.LinkRepository;
-import backend.academy.scrapper.repository.repository.TagRepository;
 import backend.academy.scrapper.service.ChatLinkService;
 import backend.academy.scrapper.service.ChatService;
 import backend.academy.scrapper.service.GitHubService;
@@ -22,11 +21,12 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
 @Configuration
-@ConditionalOnProperty(prefix = "app", name = "database-access-type", havingValue = "JPA")
+@ConditionalOnProperty(prefix = "app", name = "database-access-type", havingValue = "jpa")
 public class JpaAccessConfiguration {
+
     @Bean
-    public LinkService linkService(LinkRepository linkRepository, TagRepository tagRepository) {
-        return new OrmLinkService(linkRepository, tagRepository);
+    public LinkService linkService(LinkDao linkDao) {
+        return new JpaLinkService(linkDao);
     }
 
     @Bean
@@ -35,8 +35,7 @@ public class JpaAccessConfiguration {
     }
 
     @Bean
-    public ChatLinkService chatLinkService(
-            ChatLinkRepository chatLinkRepository, ChatRepository chatRepository) { // Добавлен ChatRepository
+    public ChatLinkService chatLinkService(ChatLinkRepository chatLinkRepository, ChatRepository chatRepository) {
         return new JpaChatLinkService(chatLinkRepository, chatRepository);
     }
 

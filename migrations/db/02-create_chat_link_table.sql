@@ -1,8 +1,5 @@
 --liquibase formatted sql
 --changeset Exsellent:02
---preconditions onFail:MARK_RAN
---precondition-sql-check expectedResult:0 SELECT COUNT(*) FROM information_schema.tables WHERE table_name = 'chat'
-
 CREATE TABLE chat_link
 (
     chat_id         BIGINT NOT NULL,

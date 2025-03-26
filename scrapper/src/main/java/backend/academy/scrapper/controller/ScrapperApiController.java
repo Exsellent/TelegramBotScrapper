@@ -86,7 +86,7 @@ public class ScrapperApiController {
     @GetMapping("/updates")
     public ResponseEntity<List<LinkUpdateRequest>> getUpdates() {
         try {
-            List<LinkUpdateRequest> updates = List.of(); // Пустой список, так как логика не реализована
+            List<LinkUpdateRequest> updates = List.of();
             return ResponseEntity.ok(updates);
         } catch (Exception e) {
             return ResponseEntity.internalServerError().build();

@@ -5,10 +5,8 @@ import backend.academy.scrapper.client.github.GitHubClient;
 import backend.academy.scrapper.client.stackoverflow.StackOverflowClient;
 import backend.academy.scrapper.dao.ChatDao;
 import backend.academy.scrapper.dao.ChatLinkDao;
-import backend.academy.scrapper.dao.LinkDao;
 import backend.academy.scrapper.database.jdbc.service.JdbcChatLinkService;
 import backend.academy.scrapper.database.jdbc.service.JdbcChatService;
-import backend.academy.scrapper.database.jdbc.service.SqlLinkService; // Обновлено
 import backend.academy.scrapper.database.scheduler.LinkUpdaterScheduler;
 import backend.academy.scrapper.service.ChatLinkService;
 import backend.academy.scrapper.service.ChatService;
@@ -23,10 +21,6 @@ import org.springframework.context.annotation.Configuration;
 @Configuration
 @ConditionalOnProperty(prefix = "app", name = "database-access-type", havingValue = "JDBC")
 public class JdbcAccessConfiguration {
-    @Bean
-    public LinkService linkService(LinkDao linkDao) {
-        return new SqlLinkService(linkDao);
-    }
 
     @Bean
     public ChatService chatService(ChatDao chatDao) {

@@ -1,0 +1,13 @@
+# Указание базового образа для выполнения Java-приложений
+FROM openjdk:23-jdk-slim
+
+# Сборка и копирование модулей
+COPY bot/target/link-tracker-bot.jar /app/link-tracker-bot.jar
+COPY scrapper/target/scrapper.jar /app/scrapper.jar
+COPY report/target/report.jar /app/report.jar
+
+# Указание рабочего каталога
+WORKDIR /app
+
+# Указание точки входа для контейнера
+CMD ["java", "-jar", "link-tracker-bot.jar"]

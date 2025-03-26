@@ -42,5 +42,6 @@ bot/.env.properties
 .env.properties
 bot/run.bat
 run.bat
+.env
 bot/src/main/resources/application-local.yml
 checklist.md

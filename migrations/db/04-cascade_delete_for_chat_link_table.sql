@@ -1,5 +1,4 @@
 --liquibase formatted sql
-
 --changeset Exsellent:04
 --preconditions onFail:MARK_RAN
 ALTER TABLE chat_link DROP CONSTRAINT IF EXISTS chat_link_chat_id_fkey;

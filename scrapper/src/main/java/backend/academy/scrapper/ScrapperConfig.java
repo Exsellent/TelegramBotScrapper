@@ -8,7 +8,6 @@ import org.springframework.validation.annotation.Validated;
 @ConfigurationProperties(prefix = "bot")
 public class ScrapperConfig {
 
-    @NotEmpty
     private String databaseAccessType;
 
     @NotEmpty

@@ -1,12 +1,9 @@
 package backend.academy.scrapper.scheduler;
 
-import static org.mockito.ArgumentMatchers.anyLong;
-import static org.mockito.Mockito.any;
-import static org.mockito.Mockito.anyInt;
-import static org.mockito.Mockito.anyString;
-import static org.mockito.Mockito.times;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
+import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.Mockito.*;
 
 import backend.academy.scrapper.client.BotApiClient;
 import backend.academy.scrapper.configuration.ApplicationConfig;
@@ -16,11 +13,11 @@ import backend.academy.scrapper.dto.CombinedPullRequestInfo;
 import backend.academy.scrapper.dto.IssuesCommentsResponse;
 import backend.academy.scrapper.dto.LinkDTO;
 import backend.academy.scrapper.dto.LinkUpdateRequest;
-import backend.academy.scrapper.dto.PullCommentsResponse;
+import backend.academy.scrapper.dto.PullRequestResponse;
+import backend.academy.scrapper.dto.User;
 import backend.academy.scrapper.service.ChatLinkService;
 import backend.academy.scrapper.service.GitHubService;
 import backend.academy.scrapper.service.LinkService;
-import backend.academy.scrapper.service.StackOverflowService;
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.time.OffsetDateTime;
@@ -29,7 +26,7 @@ import java.util.Collections;
 import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.mockito.InjectMocks;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 import reactor.core.publisher.Mono;
@@ -43,54 +40,72 @@ public class LinkUpdaterSchedulerTest {
     private ChatLinkService chatLinkService;
 
     @Mock
-    private GitHubService gitHubService;
-
-    @Mock
-    private StackOverflowService stackOverflowService;
-
-    @Mock
-    private BotApiClient botApiClient;
-
-    @Mock
     private ApplicationConfig applicationConfig;
 
     @Mock
     private ApplicationConfig.Scheduler schedulerConfig;
 
-    @InjectMocks
+    @Mock
+    private GitHubService gitHubService;
+
+    @Mock
+    private BotApiClient botApiClient;
+
     private LinkUpdaterScheduler scheduler;
 
     @BeforeEach
     public void setup() {
         MockitoAnnotations.openMocks(this);
+
         when(applicationConfig.scheduler()).thenReturn(schedulerConfig);
         when(schedulerConfig.enable()).thenReturn(true);
-        when(schedulerConfig.interval()).thenReturn(Duration.ofDays(1L));
+        when(schedulerConfig.interval()).thenReturn(Duration.ofMinutes(5));
 
-        scheduler = new LinkUpdaterScheduler(
-                applicationConfig, linkService, chatLinkService, gitHubService, stackOverflowService, botApiClient);
+        scheduler = new LinkUpdaterScheduler(linkService, chatLinkService, gitHubService, null, botApiClient, 5);
     }
 
     @Test
-    public void updateTest() {
+    public void testUpdateWithGitHubPullRequest() {
         // Arrange
         LocalDateTime now = LocalDateTime.now();
-        LocalDateTime linkLastUpdateTime = now.minusMinutes(5); // Время последнего обновления ссылки раньше текущего
-        LinkDTO mockLink =
-                new LinkDTO(1L, "https://github.com/owner/repo/pull/1", "test", now, now, linkLastUpdateTime);
+        LocalDateTime lastUpdate = now.minusHours(1);
+        LinkDTO githubLink = LinkDTO.builder()
+                .linkId(1L)
+                .url("https://github.com/owner/repo/pull/123")
+                .description("GitHub PR")
+                .createdAt(now)
+                .lastCheckTime(now)
+                .lastUpdateTime(lastUpdate)
+                .tags(null)
+                .build();
 
-        when(linkService.findLinksToCheck(any(LocalDateTime.class))).thenReturn(Collections.singletonList(mockLink));
+        // Правильный порядок мокирования: сначала void-методы
+        doNothing().when(linkService).update(any(LinkDTO.class));
 
-        OffsetDateTime commentUpdatedAt = OffsetDateTime.now();
+        when(linkService.findLinksToCheck(any(), anyInt(), anyInt()))
+                .thenReturn(List.of(githubLink))
+                .thenReturn(Collections.emptyList());
+
+        when(chatLinkService.findAllChatsForLink(1L)).thenReturn(List.of(new ChatLinkDTO(1L, 101L)));
+
+        PullRequestResponse pullRequest = new PullRequestResponse();
+        pullRequest.setTitle("Test Pull Request");
+        pullRequest.setCreatedAt(OffsetDateTime.now().minusDays(1));
+        pullRequest.setUser(new User(1L, "testUser", null, "User"));
+
+        User user = new User(1L, "testUser", null, "User");
         IssuesCommentsResponse comment = new IssuesCommentsResponse(
-                "url", 1L, "Comment body", commentUpdatedAt.minusMinutes(10), commentUpdatedAt);
-        List<IssuesCommentsResponse> issueComments = List.of(comment);
-        when(gitHubService.getPullRequestInfo(anyString(), anyString(), anyInt()))
-                .thenReturn(Mono.just(
-                        new CombinedPullRequestInfo("Title", issueComments, new ArrayList<PullCommentsResponse>())));
+                "https://api.github.com/repos/owner/repo/issues/comments/123",
+                123L,
+                "This is a test comment",
+                user,
+                OffsetDateTime.now().minusMinutes(30),
+                OffsetDateTime.now().minusMinutes(20));
 
-        // Добавляем мок для chatLinkService, чтобы список tgChatIds не был пустым
-        when(chatLinkService.findAllChatsForLink(anyLong())).thenReturn(List.of(new ChatLinkDTO(1L, 1L)));
+        CombinedPullRequestInfo prInfo =
+                new CombinedPullRequestInfo("Test PR", pullRequest, List.of(comment), new ArrayList<>());
+
+        when(gitHubService.getPullRequestInfo("owner", "repo", 123)).thenReturn(Mono.just(prInfo));
 
         when(botApiClient.postUpdate(any(LinkUpdateRequest.class))).thenReturn(Mono.empty());
 
@@ -98,8 +113,85 @@ public class LinkUpdaterSchedulerTest {
         scheduler.update();
 
         // Assert
-        verify(linkService, times(1)).findLinksToCheck(any(LocalDateTime.class));
-        verify(gitHubService, times(1)).getPullRequestInfo(anyString(), anyString(), anyInt());
+        verify(gitHubService, times(1)).getPullRequestInfo("owner", "repo", 123);
         verify(botApiClient, times(1)).postUpdate(any(LinkUpdateRequest.class));
+
+        ArgumentCaptor<LinkUpdateRequest> captor = ArgumentCaptor.forClass(LinkUpdateRequest.class);
+        verify(botApiClient).postUpdate(captor.capture());
+        assertNotNull(captor.getValue().getDescription());
+    }
+
+    @Test
+    public void testGitHubUpdateMessageFormatting() {
+        // Arrange
+        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime lastUpdate = now.minusHours(1);
+        LinkDTO githubLink = LinkDTO.builder()
+                .linkId(4L)
+                .url("https://github.com/owner/repo/pull/456")
+                .description("GitHub PR")
+                .createdAt(now)
+                .lastCheckTime(now)
+                .lastUpdateTime(lastUpdate)
+                .tags(null)
+                .build();
+
+        doNothing().when(linkService).update(any(LinkDTO.class));
+
+        when(linkService.findLinksToCheck(any(), anyInt(), anyInt()))
+                .thenReturn(List.of(githubLink))
+                .thenReturn(Collections.emptyList());
+
+        when(chatLinkService.findAllChatsForLink(4L)).thenReturn(List.of(new ChatLinkDTO(4L, 404L)));
+
+        PullRequestResponse pullRequest = new PullRequestResponse();
+        pullRequest.setTitle("Message Formatting Test PR");
+        pullRequest.setCreatedAt(OffsetDateTime.now().minusDays(1));
+        pullRequest.setUser(new User(4L, "prUser", null, "User"));
+
+        User user = new User(4L, "commentUser", null, "User");
+        String longComment = "This is a very long comment...".repeat(10);
+        IssuesCommentsResponse comment = new IssuesCommentsResponse(
+                "https://api.github.com/repos/owner/repo/issues/comments/456",
+                456L,
+                longComment,
+                user,
+                OffsetDateTime.now().minusMinutes(30),
+                OffsetDateTime.now().minusMinutes(10));
+
+        CombinedPullRequestInfo prInfo = new CombinedPullRequestInfo(
+                "Message Formatting Test", pullRequest, List.of(comment), new ArrayList<>());
+
+        when(gitHubService.getPullRequestInfo("owner", "repo", 456)).thenReturn(Mono.just(prInfo));
+
+        ArgumentCaptor<LinkUpdateRequest> captor = ArgumentCaptor.forClass(LinkUpdateRequest.class);
+        when(botApiClient.postUpdate(captor.capture())).thenReturn(Mono.empty());
+
+        // Act
+        scheduler.update();
+
+        // Assert
+        LinkUpdateRequest capturedRequest = captor.getValue();
+        assertNotNull(capturedRequest);
+        String description = capturedRequest.getDescription();
+        System.out.println("Captured description: " + description);
+
+        // Проверяем наличие имени пользователя
+        assertTrue(description.contains("Comment by commentUser"));
+
+        // Извлекаем текст комментария из сообщения и проверяем его длину
+        String[] lines = description.split("\n");
+        String commentLine = null;
+        for (String line : lines) {
+            if (line.startsWith("This is a very long comment")) {
+                commentLine = line;
+                break;
+            }
+        }
+        assertNotNull(commentLine, "Comment text should be present in description");
+        assertTrue(
+                commentLine.length() <= 203,
+                "Comment preview should be truncated to 200 characters + '...' (203 total)");
+        assertTrue(commentLine.endsWith("..."), "Truncated comment should end with ellipsis");
     }
 }

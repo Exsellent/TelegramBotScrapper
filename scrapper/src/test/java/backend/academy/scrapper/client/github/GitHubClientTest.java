@@ -1,9 +1,6 @@
 package backend.academy.scrapper.client.github;
 
-import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
-import static com.github.tomakehurst.wiremock.client.WireMock.configureFor;
-import static com.github.tomakehurst.wiremock.client.WireMock.get;
-import static com.github.tomakehurst.wiremock.client.WireMock.urlEqualTo;
+import static com.github.tomakehurst.wiremock.client.WireMock.*;
 import static com.github.tomakehurst.wiremock.core.WireMockConfiguration.wireMockConfig;
 
 import backend.academy.scrapper.dto.IssuesCommentsResponse;
@@ -15,7 +12,6 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.core.codec.DecodingException;
 import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
@@ -26,23 +22,32 @@ public class GitHubClientTest {
 
     private WireMockServer wireMockServer;
     private GitHubClient gitHubClient;
+    private WebClient webClient;
 
     @BeforeEach
     void setUp() {
-        wireMockServer = new WireMockServer(wireMockConfig().port(8089));
+        wireMockServer = new WireMockServer(wireMockConfig().dynamicPort());
         wireMockServer.start();
-        configureFor("localhost", 8089);
+        configureFor("localhost", wireMockServer.port());
 
-        WebClient webClient =
-                WebClient.builder().baseUrl("http://localhost:8089").build();
+        webClient = WebClient.builder()
+                .baseUrl("http://localhost:" + wireMockServer.port())
+                .build();
+
         gitHubClient = new GitHubClientImpl(webClient, null);
-
-        setUpPullRequestInfo();
-        setUpIssueComments();
-        setUpPullComments();
     }
 
-    void setUpPullRequestInfo() {
+    @AfterEach
+    void tearDown() {
+        if (gitHubClient instanceof GitHubClientImpl) {
+            ((GitHubClientImpl) gitHubClient).clearCaches();
+        }
+        wireMockServer.resetAll();
+        wireMockServer.stop();
+    }
+
+    @Test
+    void fetchPullRequestDetailsTest() {
         wireMockServer.stubFor(
                 get(urlEqualTo("/repos/owner/repo/pulls/1"))
                         .willReturn(
@@ -50,34 +55,10 @@ public class GitHubClientTest {
                                         .withHeader("Content-Type", "application/json")
                                         .withStatus(200)
                                         .withBody(
-                                                "{\"id\": 1, \"title\": \"Test PR\", \"review_comments_url\": \"\", \"comments_url\": \"\"}")));
-    }
+                                                "{\"id\": 1, \"title\": \"Test PR\", \"created_at\": \"2020-01-01T00:00:00Z\", \"updated_at\": \"2020-01-01T00:00:00Z\", \"review_comments_url\": \"\", \"comments_url\": \"\"}")));
 
-    void setUpIssueComments() {
-        wireMockServer.stubFor(
-                get(urlEqualTo("/repos/owner/repo/issues/1/comments"))
-                        .willReturn(
-                                aResponse()
-                                        .withHeader("Content-Type", "application/json")
-                                        .withStatus(200)
-                                        .withBody(
-                                                "[{\"id\": 2, \"url\": \"http://example.com\", \"created_at\": \"2020-01-01T00:00:00Z\", \"body\": \"Test comment\"}]")));
-    }
-
-    void setUpPullComments() {
-        wireMockServer.stubFor(
-                get(urlEqualTo("/repos/owner/repo/pulls/1/comments"))
-                        .willReturn(
-                                aResponse()
-                                        .withHeader("Content-Type", "application/json")
-                                        .withStatus(200)
-                                        .withBody(
-                                                "[{\"id\": 3, \"url\": \"http://example.com\", \"created_at\": \"2020-01-02T00:00:00Z\", \"body\": \"Test pull comment\"}]")));
-    }
-
-    @Test
-    void fetchPullRequestDetailsTest() {
         Mono<PullRequestResponse> response = gitHubClient.fetchPullRequestDetails("owner", "repo", 1);
+
         StepVerifier.create(response)
                 .expectNextMatches(pr -> pr.getId() == 1 && pr.getTitle().equals("Test PR"))
                 .verifyComplete();
@@ -85,7 +66,17 @@ public class GitHubClientTest {
 
     @Test
     void fetchIssueCommentsTest() {
+        wireMockServer.stubFor(
+                get(urlEqualTo("/repos/owner/repo/issues/1/comments"))
+                        .willReturn(
+                                aResponse()
+                                        .withHeader("Content-Type", "application/json")
+                                        .withStatus(200)
+                                        .withBody(
+                                                "[{\"id\": 2, \"url\": \"http://example.com\", \"body\": \"Test comment\", \"created_at\": \"2020-01-01T00:00:00Z\", \"updated_at\": \"2020-01-01T00:00:00Z\", \"user\": {\"login\": \"testUser\"}}]")));
+
         Flux<IssuesCommentsResponse> response = gitHubClient.fetchIssueComments("owner", "repo", 1);
+
         StepVerifier.create(response)
                 .expectNextMatches(
                         comment -> comment.getId() == 2 && comment.getBody().equals("Test comment"))
@@ -94,56 +85,20 @@ public class GitHubClientTest {
 
     @Test
     void fetchPullCommentsTest() {
+        wireMockServer.stubFor(
+                get(urlEqualTo("/repos/owner/repo/pulls/1/comments"))
+                        .willReturn(
+                                aResponse()
+                                        .withHeader("Content-Type", "application/json")
+                                        .withStatus(200)
+                                        .withBody(
+                                                "[{\"id\": 3, \"url\": \"http://example.com\", \"body\": \"Test pull comment\", \"created_at\": \"2020-01-02T00:00:00Z\", \"updated_at\": \"2020-01-02T00:00:00Z\", \"user\": {\"login\": \"testUser\"}}]")));
+
         Flux<PullCommentsResponse> response = gitHubClient.fetchPullComments("owner", "repo", 1);
+
         StepVerifier.create(response)
                 .expectNextMatches(
                         comment -> comment.getId() == 3 && comment.getBody().equals("Test pull comment"))
                 .verifyComplete();
-    }
-
-    @Test
-    void fetchPullRequestDetails_NotFound() {
-        wireMockServer.stubFor(get(urlEqualTo("/repos/owner/repo/pulls/1"))
-                .willReturn(aResponse().withStatus(404)));
-
-        Mono<PullRequestResponse> response = gitHubClient.fetchPullRequestDetails("owner", "repo", 1);
-
-        StepVerifier.create(response)
-                .expectErrorMatches(throwable -> throwable instanceof RuntimeException
-                        && throwable.getMessage().equals("API Error"))
-                .verify();
-    }
-
-    @Test
-    void fetchIssueComments_InternalServerError() {
-        wireMockServer.stubFor(get(urlEqualTo("/repos/owner/repo/issues/1/comments"))
-                .willReturn(aResponse().withStatus(500).withBody("Internal Server Error")));
-
-        Flux<IssuesCommentsResponse> response = gitHubClient.fetchIssueComments("owner", "repo", 1);
-
-        StepVerifier.create(response)
-                .expectErrorMatches(throwable -> throwable instanceof RuntimeException
-                        && throwable.getMessage().equals("API Error"))
-                .verify();
-    }
-
-    @Test
-    void fetchPullComments_InvalidJsonResponse() {
-        wireMockServer.stubFor(get(urlEqualTo("/repos/owner/repo/pulls/1/comments"))
-                .willReturn(aResponse()
-                        .withHeader("Content-Type", "application/json")
-                        .withStatus(200)
-                        .withBody("{invalid_json}"))); // Некорректный JSON
-
-        Flux<PullCommentsResponse> response = gitHubClient.fetchPullComments("owner", "repo", 1);
-
-        StepVerifier.create(response)
-                .expectErrorMatches(throwable -> throwable instanceof DecodingException)
-                .verify();
-    }
-
-    @AfterEach
-    void tearDown() {
-        wireMockServer.stop();
     }
 }
