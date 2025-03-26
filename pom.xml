@@ -500,7 +500,7 @@
                 <artifactId>maven-surefire-plugin</artifactId>
                 <version>3.5.2</version>
                 <configuration>
-                    <argLine>-XX:+EnableDynamicAgentLoading -Xshare:off -javaagent:${settings.localRepository}/org/mockito/mockito-core/5.14.2/mockito-core-5.14.2.jar -Djava.home=C:\Java\jdk-23.0.2</argLine>
+                    <argLine>-XX:+EnableDynamicAgentLoading -Xshare:off -javaagent:${settings.localRepository}/org/mockito/mockito-core/5.14.2/mockito-core-5.14.2.jar</argLine>
                 </configuration>
             </plugin>
         </plugins>

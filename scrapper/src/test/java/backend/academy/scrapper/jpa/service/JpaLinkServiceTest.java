@@ -62,6 +62,7 @@ public class JpaLinkServiceTest {
 
     @Autowired
     private EntityManager entityManager;
+
     private final String testUrl = "http://example.com/test";
     private final String testDescription = "Test Description";
     private Long testLinkId;
