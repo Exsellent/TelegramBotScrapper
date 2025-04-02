@@ -1,31 +1,76 @@
 services:
   postgresql:
     image: postgres:17
+    ports:
+      - "5432:5432"
     environment:
       POSTGRES_DB: scrapper
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: 21Kaharaiona
-    ports:
-      - "5432:5432"
+    volumes:
+      - pg-data:/var/lib/postgresql/data
     networks:
       - backend
-    env_file:
-      - .env
+
+  redis:
+    image: redis:latest
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    networks:
+      - backend
+
+  kafka:
+    image: apache/kafka:3.7.0
+    ports:
+      - "9092:9092"
+      - "9093:9093"
+    environment:
+      KAFKA_NODE_ID: 1
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092,CONTROLLER://0.0.0.0:9093
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,CONTROLLER:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_LOG_DIRS: /var/lib/kafka/data
+      CLUSTER_ID: "MkU3OEVBNTcwNTJENDM2Qk"  # Уникальный ID для кластера
+    volumes:
+      - kafka-data:/var/lib/kafka/data
+    command: >
+      sh -c "
+        echo 'Generating Kafka configuration...' &&
+        /opt/kafka/bin/kafka-storage.sh random-uuid > /tmp/cluster-id &&
+        /opt/kafka/bin/kafka-storage.sh format -t $(cat /tmp/cluster-id) -c /opt/kafka/config/kraft/server.properties &&
+        echo 'Starting Kafka server...' &&
+        /opt/kafka/bin/kafka-server-start.sh /opt/kafka/config/kraft/server.properties &
+        echo 'Waiting for Kafka to be ready...' &&
+        sleep 30 &&
+        echo 'Creating topics...' &&
+        /opt/kafka/bin/kafka-topics.sh --create --topic link-updates --bootstrap-server kafka:9092 --partitions 1 --replication-factor 1 --if-not-exists &&
+        /opt/kafka/bin/kafka-topics.sh --create --topic link-updates-dlq --bootstrap-server kafka:9092 --partitions 1 --replication-factor 1 --if-not-exists &&
+        echo 'Topics created, keeping container alive...' &&
+        wait
+      "
+    networks:
+      - backend
 
   migrations:
-    container_name: migrations
     image: custom-liquibase:4.29
     depends_on:
       - postgresql
     command:
       - wait-for-it
       - postgresql:5432
-      - --timeout=60  # Увеличиваем время ожидания до 60 секунд
+      - --timeout=60
       - --
       - liquibase
       - --log-level=DEBUG
-      - --searchPath=/changesets
-      - --changelog-file=master.xml
+      - --searchPath=/changesets/db
+      - --changelog-file=changelog-master.xml
       - --driver=org.postgresql.Driver
       - --url=jdbc:postgresql://postgresql:5432/scrapper
       - --username=postgres
@@ -36,6 +81,42 @@ services:
     networks:
       - backend
 
+  scrapper:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8081:8081"
+    depends_on:
+      - postgresql
+      - kafka
+    environment:
+      - SPRING_DATASOURCE_PASSWORD=21Kaharaiona
+    command: ["java", "-jar", "/app/scrapper.jar"]
+    networks:
+      - backend
+
+  bot:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8080:8080"
+    depends_on:
+      - postgresql
+      - kafka
+      - redis
+    environment:
+      - SPRING_DATASOURCE_PASSWORD=21Kaharaiona
+    command: ["java", "-jar", "/app/link-tracker-bot.jar"]
+    networks:
+      - backend
+
 networks:
   backend:
     driver: bridge
+
+volumes:
+  pg-data:
+  redis-data:
+  kafka-data:

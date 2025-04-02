@@ -32,6 +32,7 @@ import org.springframework.stereotype.Component;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.core.scheduler.Schedulers;
+import backend.academy.scrapper.service.NotificationService;
 
 @Component
 public class LinkUpdaterScheduler {
@@ -45,22 +46,22 @@ public class LinkUpdaterScheduler {
     private final ChatLinkService chatLinkService;
     private final GitHubService gitHubService;
     private final StackOverflowService stackOverflowService;
-    private final BotApiClient botApiClient;
+    private final NotificationService notificationService;
     private final int checkIntervalMinutes;
 
     @Autowired
     public LinkUpdaterScheduler(
-            LinkService linkService,
-            ChatLinkService chatLinkService,
-            GitHubService gitHubService,
-            StackOverflowService stackOverflowService,
-            BotApiClient botApiClient,
-            @Value("${app.check-interval-minutes}") int checkIntervalMinutes) {
+        LinkService linkService,
+        ChatLinkService chatLinkService,
+        GitHubService gitHubService,
+        StackOverflowService stackOverflowService,
+        NotificationService notificationService,
+        @Value("${app.check-interval-minutes}") int checkIntervalMinutes) {
         this.linkService = linkService;
         this.chatLinkService = chatLinkService;
         this.gitHubService = gitHubService;
         this.stackOverflowService = stackOverflowService;
-        this.botApiClient = botApiClient;
+        this.notificationService = notificationService;
         this.checkIntervalMinutes = checkIntervalMinutes;
     }
 
@@ -70,7 +71,7 @@ public class LinkUpdaterScheduler {
         Collection<LinkDTO> links;
         do {
             links = linkService.findLinksToCheck(
-                    LocalDateTime.now().minusMinutes(checkIntervalMinutes), offset, BATCH_SIZE);
+                LocalDateTime.now().minusMinutes(checkIntervalMinutes), offset, BATCH_SIZE);
             LOGGER.info("Processing batch of {} links at offset {}", links.size(), offset);
             processLinksBatch(links);
             offset += BATCH_SIZE;
@@ -82,22 +83,22 @@ public class LinkUpdaterScheduler {
         List<LinkDTO> linksList = new ArrayList<>(batchLinks);
 
         Flux.range(0, PARALLEL_THREADS)
-                .flatMap(threadIndex -> {
-                    int chunkStart = threadIndex * chunkSize;
-                    int chunkEnd = Math.min(chunkStart + chunkSize, linksList.size());
-                    if (chunkStart >= linksList.size()) {
-                        return Flux.empty();
-                    }
-                    List<LinkDTO> chunk = linksList.subList(chunkStart, chunkEnd);
-                    LOGGER.info("Thread {} processing {} links", threadIndex, chunk.size());
-                    return Flux.fromIterable(chunk)
-                            .flatMap(this::checkAndUpdateLink)
-                            .publishOn(Schedulers.boundedElastic());
-                })
-                .collectList()
-                .doOnSuccess(result -> LOGGER.info("Batch processed successfully"))
-                .doOnError(error -> LOGGER.error("Error processing batch", error))
-                .subscribe();
+            .flatMap(threadIndex -> {
+                int chunkStart = threadIndex * chunkSize;
+                int chunkEnd = Math.min(chunkStart + chunkSize, linksList.size());
+                if (chunkStart >= linksList.size()) {
+                    return Flux.empty();
+                }
+                List<LinkDTO> chunk = linksList.subList(chunkStart, chunkEnd);
+                LOGGER.info("Thread {} processing {} links", threadIndex, chunk.size());
+                return Flux.fromIterable(chunk)
+                    .flatMap(this::checkAndUpdateLink)
+                    .publishOn(Schedulers.boundedElastic());
+            })
+            .collectList()
+            .doOnSuccess(result -> LOGGER.info("Batch processed successfully"))
+            .doOnError(error -> LOGGER.error("Error processing batch", error))
+            .subscribe();
     }
 
     private Mono<LinkDTO> checkAndUpdateLink(LinkDTO link) {
@@ -110,7 +111,7 @@ public class LinkUpdaterScheduler {
         } else if (link.getUrl().contains("stackoverflow.com")) {
             return checkStackOverflowLink(link);
         }
-        return Mono.just(updateLinkLastCheckTime(link, LocalDateTime.now()));
+        return Mono.just(updateLinkLastCheck(link, LocalDateTime.now()));
     }
 
     private Mono<LinkDTO> checkGitHubLink(LinkDTO link) {
@@ -120,37 +121,36 @@ public class LinkUpdaterScheduler {
 
         return gitHubService.getPullRequestInfo(owner, repo, pullRequestId).flatMap(combinedInfo -> {
             List<Comment> updatedComments = Stream.concat(
-                            combinedInfo.getIssueComments().stream().map(comment -> (Comment) comment),
-                            combinedInfo.getPullComments().stream().map(comment -> (Comment) comment))
-                    .filter(comment -> link.getLastUpdateTime() == null
-                            || comment.getUpdatedAt()
-                                    .isAfter(link.getLastUpdateTime()
-                                            .atZone(ZoneId.systemDefault())
-                                            .toInstant()
-                                            .atOffset(ZoneOffset.UTC)))
-                    .toList();
+                    combinedInfo.getIssueComments().stream().map(comment -> (Comment) comment),
+                    combinedInfo.getPullComments().stream().map(comment -> (Comment) comment))
+                .filter(comment -> link.getLastUpdateTime() == null
+                    || comment.getUpdatedAt()
+                    .isAfter(link.getLastUpdateTime()
+                        .atZone(ZoneId.systemDefault())
+                        .toInstant()
+                        .atOffset(ZoneOffset.UTC)))
+                .toList();
 
             if (!updatedComments.isEmpty() && link.getLastUpdateTime() != null) {
                 String updateMessage = buildGitHubUpdateMessage(
-                        "**PR Update**: ",
-                        combinedInfo.getPullRequest().getTitle(),
-                        combinedInfo.getPullRequest().getCreatedAt(),
-                        updatedComments);
+                    "**PR Update**: ",
+                    combinedInfo.getPullRequest().getTitle(),
+                    combinedInfo.getPullRequest().getCreatedAt(),
+                    updatedComments);
 
                 LinkUpdateRequest updateRequest = new LinkUpdateRequest(
-                        link.getLinkId(),
-                        link.getUrl(),
-                        updateMessage,
-                        "GITHUB_UPDATE",
-                        chatLinkService.findAllChatsForLink(link.getLinkId()).stream()
-                                .map(ChatLinkDTO::getChatId)
-                                .collect(Collectors.toList()));
-                return botApiClient
-                        .postUpdate(updateRequest)
-                        .then(Mono.just(updateLinkWithNewTimes(
-                                link, LocalDateTime.now(), OffsetDateTime.now().toLocalDateTime())));
+                    link.getLinkId(),
+                    link.getUrl(),
+                    updateMessage,
+                    "GITHUB_UPDATE",
+                    chatLinkService.findAllChatsForLink(link.getLinkId()).stream()
+                        .map(ChatLinkDTO::getChatId)
+                        .collect(Collectors.toList()));
+                notificationService.sendNotification(updateRequest);
+                return Mono.just(updateLinkWithTimes(
+                    link, LocalDateTime.now(), OffsetDateTime.now().toLocalDateTime()));
             }
-            return Mono.just(updateLinkLastCheckTime(link, LocalDateTime.now()));
+            return Mono.just(updateLinkLastCheck(link, LocalDateTime.now()));
         });
     }
 
@@ -161,62 +161,61 @@ public class LinkUpdaterScheduler {
 
         return gitHubService.getIssueInfo(owner, repo, issueId).flatMap(combinedInfo -> {
             List<Comment> updatedComments = combinedInfo.getIssueComments().stream()
-                    .map(comment -> (Comment) comment)
-                    .filter(comment -> link.getLastUpdateTime() == null
-                            || comment.getUpdatedAt()
-                                    .isAfter(link.getLastUpdateTime()
-                                            .atZone(ZoneId.systemDefault())
-                                            .toInstant()
-                                            .atOffset(ZoneOffset.UTC)))
-                    .toList();
+                .map(comment -> (Comment) comment)
+                .filter(comment -> link.getLastUpdateTime() == null
+                    || comment.getUpdatedAt()
+                    .isAfter(link.getLastUpdateTime()
+                        .atZone(ZoneId.systemDefault())
+                        .toInstant()
+                        .atOffset(ZoneOffset.UTC)))
+                .toList();
 
             if (!updatedComments.isEmpty() && link.getLastUpdateTime() != null) {
                 String updateMessage = buildGitHubUpdateMessage(
-                        "**Issue Update**: ",
-                        combinedInfo.getPullRequest().getTitle(),
-                        combinedInfo.getPullRequest().getCreatedAt(),
-                        updatedComments);
+                    "**Issue Update**: ",
+                    combinedInfo.getPullRequest().getTitle(),
+                    combinedInfo.getPullRequest().getCreatedAt(),
+                    updatedComments);
 
                 LinkUpdateRequest updateRequest = new LinkUpdateRequest(
-                        link.getLinkId(),
-                        link.getUrl(),
-                        updateMessage,
-                        "GITHUB_ISSUE_UPDATE",
-                        chatLinkService.findAllChatsForLink(link.getLinkId()).stream()
-                                .map(ChatLinkDTO::getChatId)
-                                .collect(Collectors.toList()));
-                return botApiClient
-                        .postUpdate(updateRequest)
-                        .then(Mono.just(updateLinkWithNewTimes(
-                                link, LocalDateTime.now(), OffsetDateTime.now().toLocalDateTime())));
+                    link.getLinkId(),
+                    link.getUrl(),
+                    updateMessage,
+                    "GITHUB_ISSUE_UPDATE",
+                    chatLinkService.findAllChatsForLink(link.getLinkId()).stream()
+                        .map(ChatLinkDTO::getChatId)
+                        .collect(Collectors.toList()));
+                notificationService.sendNotification(updateRequest);
+                return Mono.just(updateLinkWithTimes(
+                    link, LocalDateTime.now(), OffsetDateTime.now().toLocalDateTime()));
             }
-            return Mono.just(updateLinkLastCheckTime(link, LocalDateTime.now()));
+            return Mono.just(updateLinkLastCheck(link, LocalDateTime.now()));
         });
     }
 
     private String buildGitHubUpdateMessage(
-            String updateType, String title, OffsetDateTime createdAt, List<Comment> comments) {
+        String updateType, String title, OffsetDateTime createdAt, List<Comment> comments) {
         StringBuilder updateMessageBuilder = new StringBuilder();
 
         updateMessageBuilder.append(updateType).append(title).append("\n");
         updateMessageBuilder
-                .append("**Created**: ")
-                .append(createdAt.format(FORMATTER))
-                .append("\n\n");
+            .append("**Created**: ")
+            .append(createdAt.format(FORMATTER))
+            .append("\n\n");
 
         for (Comment comment : comments) {
             updateMessageBuilder.append("---\n");
             updateMessageBuilder
-                    .append("Comment by ")
-                    .append(comment.getUser().getName())
-                    .append(" at ")
-                    .append(comment.getUpdatedAt().format(FORMATTER))
-                    .append(":\n");
+                .append("Comment by ")
+                .append(comment.getUser().getName())
+                .append(" at ")
+                .append(comment.getUpdatedAt().format(FORMATTER))
+                .append(":\n");
 
             String commentText = comment.getCommentDescription();
             String preview = commentText.length() > PREVIEW_LENGTH
-                    ? commentText.substring(0, PREVIEW_LENGTH) + "..."
-                    : commentText;
+                ? commentText.substring(0, PREVIEW_LENGTH) + "..."
+                : commentText;
             updateMessageBuilder.append(preview).append("\n");
         }
 
@@ -229,28 +228,28 @@ public class LinkUpdaterScheduler {
         return stackOverflowService.getCombinedInfo(questionId).flatMap(combinedInfo -> {
             OffsetDateTime latestUpdate = combinedInfo.getLatestUpdate();
             OffsetDateTime comparisonBaseTime = link.getLastUpdateTime() != null
-                    ? link.getLastUpdateTime()
-                            .atZone(ZoneId.systemDefault())
-                            .toInstant()
-                            .atOffset(ZoneOffset.UTC)
-                    : OffsetDateTime.MIN;
+                ? link.getLastUpdateTime()
+                .atZone(ZoneId.systemDefault())
+                .toInstant()
+                .atOffset(ZoneOffset.UTC)
+                : OffsetDateTime.MIN;
 
             if (link.getLastUpdateTime() == null || latestUpdate.isAfter(comparisonBaseTime)) {
                 QuestionResponse question = combinedInfo.getQuestion();
                 StringBuilder updateMessageBuilder = new StringBuilder();
 
                 updateMessageBuilder
-                        .append("**Question Update**: ")
-                        .append(question.getTitle())
-                        .append("\n");
+                    .append("**Question Update**: ")
+                    .append(question.getTitle())
+                    .append("\n");
                 updateMessageBuilder
-                        .append("**User**: ")
-                        .append(question.getOwner().getName())
-                        .append("\n");
+                    .append("**User**: ")
+                    .append(question.getOwner().getName())
+                    .append("\n");
                 updateMessageBuilder
-                        .append("**Time**: ")
-                        .append(question.getLastActivityDate().format(FORMATTER))
-                        .append("\n\n");
+                    .append("**Time**: ")
+                    .append(question.getLastActivityDate().format(FORMATTER))
+                    .append("\n\n");
 
                 AtomicBoolean hasChanges = new AtomicBoolean(false);
 
@@ -258,55 +257,53 @@ public class LinkUpdaterScheduler {
                     if (answer.getLastActivityDate().isAfter(comparisonBaseTime)) {
                         hasChanges.set(true);
                         updateMessageBuilder
-                                .append("---\n")
-                                .append("New/Updated Answer by ")
-                                .append(answer.getOwner().getName())
-                                .append(" at ")
-                                .append(answer.getLastActivityDate().format(FORMATTER))
-                                .append(":\n");
+                            .append("---\n")
+                            .append("New/Updated Answer by ")
+                            .append(answer.getOwner().getName())
+                            .append(" at ")
+                            .append(answer.getLastActivityDate().format(FORMATTER))
+                            .append(":\n");
 
                         String answerBody = answer.getBody().replaceAll("<[^>]*>", "");
                         String preview = answerBody.length() > PREVIEW_LENGTH
-                                ? answerBody.substring(0, PREVIEW_LENGTH) + "..."
-                                : answerBody;
+                            ? answerBody.substring(0, PREVIEW_LENGTH) + "..."
+                            : answerBody;
                         updateMessageBuilder
-                                .append(preview)
-                                .append("\n")
-                                .append("https://stackoverflow.com/a/")
-                                .append(answer.getAnswerId())
-                                .append("\n");
+                            .append(preview)
+                            .append("\n")
+                            .append("https://stackoverflow.com/a/")
+                            .append(answer.getAnswerId())
+                            .append("\n");
                     }
                 });
 
                 if (hasChanges.get()) {
                     String descriptionUpdate = updateMessageBuilder.toString();
                     LinkUpdateRequest updateRequest = new LinkUpdateRequest(
-                            link.getLinkId(),
-                            link.getUrl(),
-                            descriptionUpdate,
-                            "STACKOVERFLOW_UPDATE",
-                            chatLinkService.findAllChatsForLink(link.getLinkId()).stream()
-                                    .map(ChatLinkDTO::getChatId)
-                                    .collect(Collectors.toList()));
-
-                    return botApiClient
-                            .postUpdate(updateRequest)
-                            .then(Mono.just(
-                                    updateLinkWithNewTimes(link, LocalDateTime.now(), latestUpdate.toLocalDateTime())));
+                        link.getLinkId(),
+                        link.getUrl(),
+                        descriptionUpdate,
+                        "STACKOVERFLOW_UPDATE",
+                        chatLinkService.findAllChatsForLink(link.getLinkId()).stream()
+                            .map(ChatLinkDTO::getChatId)
+                            .collect(Collectors.toList()));
+                    notificationService.sendNotification(updateRequest);
+                    return Mono.just(updateLinkWithTimes(
+                        link, LocalDateTime.now(), latestUpdate.toLocalDateTime()));
                 }
             }
-            return Mono.just(updateLinkLastCheckTime(link, LocalDateTime.now()));
+            return Mono.just(updateLinkLastCheck(link, LocalDateTime.now()));
         });
     }
 
-    private LinkDTO updateLinkWithNewTimes(LinkDTO link, LocalDateTime checkTime, LocalDateTime updateTime) {
+    private LinkDTO updateLinkWithTimes(LinkDTO link, LocalDateTime checkTime, LocalDateTime updateTime) {
         link.setLastCheckTime(checkTime);
         link.setLastUpdateTime(updateTime);
         linkService.update(link);
         return link;
     }
 
-    private LinkDTO updateLinkLastCheckTime(LinkDTO link, LocalDateTime checkTime) {
+    private LinkDTO updateLinkLastCheck(LinkDTO link, LocalDateTime checkTime) {
         link.setLastCheckTime(checkTime);
         linkService.update(link);
         return link;
