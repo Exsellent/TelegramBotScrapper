@@ -60,8 +60,8 @@ public class JpaChatLinkService implements ChatLinkService {
     public Collection<ChatLinkDTO> findAllLinksForChat(long chatId) {
         LOGGER.info("Finding all links for chat {}", chatId);
         Collection<ChatLinkDTO> links = chatLinkRepository.findByChatId(chatId).stream()
-            .map(this::mapToDto)
-            .collect(Collectors.toList());
+                .map(this::mapToDto)
+                .collect(Collectors.toList());
         LOGGER.info("Found {} links for chat {}", links.size(), chatId);
         return links;
     }
@@ -70,8 +70,8 @@ public class JpaChatLinkService implements ChatLinkService {
     public Collection<ChatLinkDTO> findAllChatsForLink(long linkId) {
         LOGGER.info("Finding all chats for link {}", linkId);
         Collection<ChatLinkDTO> chats = chatLinkRepository.findByLinkId(linkId).stream()
-            .map(this::mapToDto)
-            .collect(Collectors.toList());
+                .map(this::mapToDto)
+                .collect(Collectors.toList());
         LOGGER.info("Found {} chats for link {}", chats.size(), linkId);
         return chats;
     }
@@ -85,15 +85,16 @@ public class JpaChatLinkService implements ChatLinkService {
     }
 
     private ChatLinkDTO mapToDto(ChatLink chatLink) {
-        return new ChatLinkDTO(chatLink.getChatId(), chatLink.getLinkId(), chatLink.getFilters(), chatLink.getSharedAt());
+        return new ChatLinkDTO(
+                chatLink.getChatId(), chatLink.getLinkId(), chatLink.getFilters(), chatLink.getSharedAt());
     }
+
     @Override
     public Map<String, String> getFiltersForLink(long linkId) {
         LOGGER.info("Fetching filters for link {}", linkId);
         return chatLinkRepository.findByLinkId(linkId).stream()
-            .findFirst()
-            .map(ChatLink::getFilters)
-            .orElse(Map.of());
+                .findFirst()
+                .map(ChatLink::getFilters)
+                .orElse(Map.of());
     }
-
 }

@@ -7,6 +7,10 @@ import backend.academy.bot.utils.LinkParser;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.pengrad.telegrambot.model.Update;
 import com.pengrad.telegrambot.request.SendMessage;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -14,11 +18,6 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Component;
-
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
 
 @Component
 public class TrackCommand implements Command {
@@ -31,12 +30,11 @@ public class TrackCommand implements Command {
 
     @Autowired
     public TrackCommand(
-        ConversationManager conversationManager,
-        KafkaTemplate<String, String> kafkaTemplate,
-        RedisTemplate<String, List<LinkResponse>> redisTemplate,
-        ObjectMapper objectMapper,
-        @Value("${app.kafka.topics.link-commands}") String linkCommandsTopic
-    ) {
+            ConversationManager conversationManager,
+            KafkaTemplate<String, String> kafkaTemplate,
+            RedisTemplate<String, List<LinkResponse>> redisTemplate,
+            ObjectMapper objectMapper,
+            @Value("${app.kafka.topics.link-commands}") String linkCommandsTopic) {
         this.conversationManager = conversationManager;
         this.kafkaTemplate = kafkaTemplate;
         this.redisTemplate = redisTemplate;
@@ -84,7 +82,8 @@ public class TrackCommand implements Command {
                 List<String> tags = Arrays.asList(messageText.split("\\s+"));
                 data.setTags(tags);
                 conversationManager.setUserState(chatId, ConversationState.AWAITING_FILTERS);
-                return new SendMessage(chatId, "Enter filters (format: key:value, e.g., 'user:john type:comment') or type 'skip':");
+                return new SendMessage(
+                        chatId, "Enter filters (format: key:value, e.g., 'user:john type:comment') or type 'skip':");
 
             case AWAITING_FILTERS:
                 if (messageText.equals("skip")) {
@@ -92,15 +91,15 @@ public class TrackCommand implements Command {
                 }
                 Map<String, String> filters = parseFilters(messageText);
                 if (filters.isEmpty()) {
-                    throw new FilterValidationException("Invalid filter format. Please enter filters in the correct format.");
+                    throw new FilterValidationException(
+                            "Invalid filter format. Please enter filters in the correct format.");
                 }
                 data.setFilters(filters);
 
                 try {
                     Map<String, String> effectiveFilters = data.getFilters() != null ? data.getFilters() : Map.of();
                     String jsonMessage = objectMapper.writeValueAsString(
-                        Map.of("command", "add", "link", data.getUrl(), "filters", effectiveFilters)
-                    );
+                            Map.of("command", "add", "link", data.getUrl(), "filters", effectiveFilters));
                     kafkaTemplate.send(linkCommandsTopic, chatId.toString(), jsonMessage);
                     redisTemplate.delete("tracked-links:" + chatId);
                     conversationManager.setUserState(chatId, ConversationState.IDLE);

@@ -5,14 +5,13 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
 import jakarta.persistence.IdClass;
 import jakarta.persistence.Table;
+import java.time.LocalDateTime;
+import java.util.Map;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 import lombok.ToString;
-
-import java.time.LocalDateTime;
-import java.util.Map;
 
 @Entity
 @Table(name = "chat_link")
@@ -25,10 +24,13 @@ import java.util.Map;
 public class ChatLink {
     @Id
     private Long chatId;
+
     @Id
     private Long linkId;
+
     @Column(name = "shared_at")
     private LocalDateTime sharedAt;
+
     @Column(name = "filters", columnDefinition = "json")
     private Map<String, String> filters;
 }

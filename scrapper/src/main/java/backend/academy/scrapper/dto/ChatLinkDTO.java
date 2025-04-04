@@ -20,8 +20,19 @@ public class ChatLinkDTO {
         this(chatId, linkId, null, null);
     }
 
-    public long getChatId() { return chatId; }
-    public long getLinkId() { return linkId; }
-    public LocalDateTime getSharedAt() { return sharedAt; }
-    public Map<String, String> getFilters() { return filters; }
+    public long getChatId() {
+        return chatId;
+    }
+
+    public long getLinkId() {
+        return linkId;
+    }
+
+    public LocalDateTime getSharedAt() {
+        return sharedAt;
+    }
+
+    public Map<String, String> getFilters() {
+        return filters;
+    }
 }

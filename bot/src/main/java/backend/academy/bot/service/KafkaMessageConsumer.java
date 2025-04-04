@@ -1,7 +1,7 @@
 package backend.academy.bot.service;
 
-import backend.academy.bot.insidebot.TelegramBotService;
 import backend.academy.bot.dto.LinkUpdateRequest;
+import backend.academy.bot.insidebot.TelegramBotService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

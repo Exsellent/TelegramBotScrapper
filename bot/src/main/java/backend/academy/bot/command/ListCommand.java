@@ -5,6 +5,8 @@ import backend.academy.bot.dto.LinkResponse;
 import backend.academy.bot.dto.ListLinksResponse;
 import com.pengrad.telegrambot.model.Update;
 import com.pengrad.telegrambot.request.SendMessage;
+import java.util.List;
+import java.util.concurrent.TimeUnit;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -12,9 +14,6 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Component;
-
-import java.util.List;
-import java.util.concurrent.TimeUnit;
 
 @Component
 public class ListCommand implements Command {
@@ -27,11 +26,10 @@ public class ListCommand implements Command {
 
     @Autowired
     public ListCommand(
-        KafkaTemplate<String, List<LinkResponse>> kafkaTemplate,
-        RedisTemplate<String, List<LinkResponse>> redisTemplate,
-        ScrapperApiClient scrapperApiClient,
-        @Value("${app.kafka.topics.link-updates}") String linkUpdatesTopic
-    ) {
+            KafkaTemplate<String, List<LinkResponse>> kafkaTemplate,
+            RedisTemplate<String, List<LinkResponse>> redisTemplate,
+            ScrapperApiClient scrapperApiClient,
+            @Value("${app.kafka.topics.link-updates}") String linkUpdatesTopic) {
         this.kafkaTemplate = kafkaTemplate;
         this.redisTemplate = redisTemplate;
         this.scrapperApiClient = scrapperApiClient;

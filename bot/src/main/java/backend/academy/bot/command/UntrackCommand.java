@@ -15,7 +15,6 @@ import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Component;
 
-
 @Component
 public class UntrackCommand implements Command {
     private static final Logger LOGGER = LoggerFactory.getLogger(UntrackCommand.class);
@@ -27,11 +26,10 @@ public class UntrackCommand implements Command {
 
     @Autowired
     public UntrackCommand(
-        KafkaTemplate<String, String> kafkaTemplate,
-        RedisTemplate<String, List<LinkResponse>> redisTemplate,
-        ObjectMapper objectMapper,
-        @Value("${app.kafka.topics.link-commands}") String linkCommandsTopic
-    ) {
+            KafkaTemplate<String, String> kafkaTemplate,
+            RedisTemplate<String, List<LinkResponse>> redisTemplate,
+            ObjectMapper objectMapper,
+            @Value("${app.kafka.topics.link-commands}") String linkCommandsTopic) {
         this.kafkaTemplate = kafkaTemplate;
         this.redisTemplate = redisTemplate;
         this.objectMapper = objectMapper;

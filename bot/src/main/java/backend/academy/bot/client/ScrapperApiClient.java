@@ -1,7 +1,6 @@
 package backend.academy.bot.client;
 
 import backend.academy.bot.dto.AddLinkRequest;
-import backend.academy.bot.dto.LinkResponse;
 import backend.academy.bot.dto.LinkUpdateRequest;
 import backend.academy.bot.dto.ListLinksResponse;
 import backend.academy.bot.dto.RemoveLinkRequest;
@@ -39,7 +38,6 @@ public class ScrapperApiClient {
 
     @Value("${conversation.timeout.minutes:15}")
     private int conversationTimeoutMinutes;
-
 
     public ScrapperApiClient(@Value("${scrapper.api.base-url}") String baseUrl) {
         this.baseUrl = baseUrl;
@@ -212,6 +210,4 @@ public class ScrapperApiClient {
             LOGGER.error("Error registering the chat {}: {}", chatId, e.getMessage());
         }
     }
-
-
 }

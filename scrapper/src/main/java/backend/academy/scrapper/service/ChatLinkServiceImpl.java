@@ -15,9 +15,8 @@ public class ChatLinkServiceImpl implements ChatLinkService {
     @Override
     public void addLinkToChat(long chatId, long linkId, Map<String, String> filters) {
         chatToLinks
-            .computeIfAbsent(chatId, k -> new ConcurrentHashMap<>())
-            .put(linkId, new ChatLinkDTO(chatId, linkId, filters, LocalDateTime.now()));
-
+                .computeIfAbsent(chatId, k -> new ConcurrentHashMap<>())
+                .put(linkId, new ChatLinkDTO(chatId, linkId, filters, LocalDateTime.now()));
     }
 
     @Override
@@ -43,9 +42,9 @@ public class ChatLinkServiceImpl implements ChatLinkService {
     @Override
     public Collection<ChatLinkDTO> findAllChatsForLink(long linkId) {
         return chatToLinks.values().stream()
-            .flatMap(links -> links.values().stream())
-            .filter(chatLink -> chatLink.getLinkId() == linkId)
-            .collect(Collectors.toList());
+                .flatMap(links -> links.values().stream())
+                .filter(chatLink -> chatLink.getLinkId() == linkId)
+                .collect(Collectors.toList());
     }
 
     @Override

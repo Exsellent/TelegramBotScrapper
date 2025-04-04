@@ -49,15 +49,15 @@ public class JdbcChatLinkService implements ChatLinkService {
     @Override
     public Collection<ChatLinkDTO> findAllLinksForChat(long chatId) {
         return chatLinkDao.findByChatId(chatId).stream()
-            .map(this::toChatLinkDTO)
-            .toList();
+                .map(this::toChatLinkDTO)
+                .toList();
     }
 
     @Override
     public Collection<ChatLinkDTO> findAllChatsForLink(long linkId) {
         return chatLinkDao.findByLinkId(linkId).stream()
-            .map(this::toChatLinkDTO)
-            .toList();
+                .map(this::toChatLinkDTO)
+                .toList();
     }
 
     @Override
@@ -66,15 +66,15 @@ public class JdbcChatLinkService implements ChatLinkService {
     }
 
     private ChatLinkDTO toChatLinkDTO(ChatLink chatLink) {
-        return new ChatLinkDTO(chatLink.getChatId(), chatLink.getLinkId(), chatLink.getFilters(), chatLink.getSharedAt());
+        return new ChatLinkDTO(
+                chatLink.getChatId(), chatLink.getLinkId(), chatLink.getFilters(), chatLink.getSharedAt());
     }
+
     @Override
     public Map<String, String> getFiltersForLink(long linkId) {
         return chatLinkDao.findByLinkId(linkId).stream()
-            .findFirst()
-            .map(ChatLink::getFilters)
-            .orElse(Map.of());
+                .findFirst()
+                .map(ChatLink::getFilters)
+                .orElse(Map.of());
     }
-
-
 }

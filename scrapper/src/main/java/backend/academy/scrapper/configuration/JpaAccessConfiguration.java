@@ -54,8 +54,15 @@ public class JpaAccessConfiguration {
             LinkService linkService,
             ChatLinkService chatLinkService,
             GitHubService gitHubService,
-            StackOverflowService stackOverflowService, NotificationService notificationService,
+            StackOverflowService stackOverflowService,
+            NotificationService notificationService,
             @Value("${app.check-interval-minutes}") int checkIntervalMinutes) {
-        return new LinkUpdaterScheduler(linkService, chatLinkService, gitHubService, stackOverflowService, notificationService, checkIntervalMinutes);
+        return new LinkUpdaterScheduler(
+                linkService,
+                chatLinkService,
+                gitHubService,
+                stackOverflowService,
+                notificationService,
+                checkIntervalMinutes);
     }
 }

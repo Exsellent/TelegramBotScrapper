@@ -4,17 +4,16 @@ import backend.academy.scrapper.dao.ChatLinkDao;
 import backend.academy.scrapper.domain.ChatLink;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import lombok.AllArgsConstructor;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
-import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.stereotype.Repository;
-import org.springframework.transaction.annotation.Transactional;
-
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
+import lombok.AllArgsConstructor;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.stereotype.Repository;
+import org.springframework.transaction.annotation.Transactional;
 
 @Repository
 @AllArgsConstructor
@@ -45,7 +44,8 @@ public class JdbcChatLinkDao implements ChatLinkDao {
     public void add(ChatLink chatLink) {
         String sql = "INSERT INTO chat_link (chat_id, link_id, shared_at, filters) VALUES (?, ?, ?, ?::json)";
         try {
-            String filtersJson = chatLink.getFilters() != null ? objectMapper.writeValueAsString(chatLink.getFilters()) : null;
+            String filtersJson =
+                    chatLink.getFilters() != null ? objectMapper.writeValueAsString(chatLink.getFilters()) : null;
             jdbcTemplate.update(sql, chatLink.getChatId(), chatLink.getLinkId(), chatLink.getSharedAt(), filtersJson);
         } catch (JsonProcessingException e) {
             throw new RuntimeException("Error serializing filters to JSON", e);
@@ -61,10 +61,7 @@ public class JdbcChatLinkDao implements ChatLinkDao {
     @Transactional
     @Override
     public void removeByChatIdAndLinkId(long chatId, long linkId) {
-        jdbcTemplate.update(
-            "DELETE FROM chat_link WHERE chat_id = ? AND link_id = ?",
-            chatId, linkId
-        );
+        jdbcTemplate.update("DELETE FROM chat_link WHERE chat_id = ? AND link_id = ?", chatId, linkId);
     }
 
     @Override
@@ -75,10 +72,8 @@ public class JdbcChatLinkDao implements ChatLinkDao {
 
     @Override
     public boolean existsByLinkId(long linkId) {
-        int count = jdbcTemplate.queryForObject(
-            "SELECT COUNT(*) FROM chat_link WHERE link_id = ?",
-            Integer.class, linkId
-        );
+        int count =
+                jdbcTemplate.queryForObject("SELECT COUNT(*) FROM chat_link WHERE link_id = ?", Integer.class, linkId);
         return count > 0;
     }
 
