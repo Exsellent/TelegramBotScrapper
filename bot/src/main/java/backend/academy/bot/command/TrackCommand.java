@@ -1,31 +1,47 @@
 package backend.academy.bot.command;
 
-import backend.academy.bot.client.ScrapperApiClient;
-import backend.academy.bot.dto.AddLinkRequest;
+import backend.academy.bot.dto.LinkResponse;
 import backend.academy.bot.exception.FilterValidationException;
 import backend.academy.bot.exception.InvalidLinkException;
 import backend.academy.bot.utils.LinkParser;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.pengrad.telegrambot.model.Update;
 import com.pengrad.telegrambot.request.SendMessage;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.kafka.core.KafkaTemplate;
+import org.springframework.stereotype.Component;
+
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.stereotype.Component;
 
 @Component
 public class TrackCommand implements Command {
     private static final Logger LOGGER = LoggerFactory.getLogger(TrackCommand.class);
-    private final ScrapperApiClient scrapperApiClient;
     private final ConversationManager conversationManager;
+    private final KafkaTemplate<String, String> kafkaTemplate;
+    private final RedisTemplate<String, List<LinkResponse>> redisTemplate;
+    private final ObjectMapper objectMapper;
+    private final String linkCommandsTopic;
 
     @Autowired
-    public TrackCommand(ScrapperApiClient scrapperApiClient, ConversationManager conversationManager) {
-        this.scrapperApiClient = scrapperApiClient;
+    public TrackCommand(
+        ConversationManager conversationManager,
+        KafkaTemplate<String, String> kafkaTemplate,
+        RedisTemplate<String, List<LinkResponse>> redisTemplate,
+        ObjectMapper objectMapper,
+        @Value("${app.kafka.topics.link-commands}") String linkCommandsTopic
+    ) {
         this.conversationManager = conversationManager;
+        this.kafkaTemplate = kafkaTemplate;
+        this.redisTemplate = redisTemplate;
+        this.objectMapper = objectMapper;
+        this.linkCommandsTopic = linkCommandsTopic;
     }
 
     @Override
@@ -43,8 +59,6 @@ public class TrackCommand implements Command {
         Long chatId = update.message().chat().id();
         String messageText = update.message().text();
         ConversationState state = conversationManager.getUserState(chatId);
-
-        // Инициализация данных для отслеживания
         ConversationManager.TrackingData data = conversationManager.getTrackingData(chatId);
 
         switch (state) {
@@ -70,8 +84,7 @@ public class TrackCommand implements Command {
                 List<String> tags = Arrays.asList(messageText.split("\\s+"));
                 data.setTags(tags);
                 conversationManager.setUserState(chatId, ConversationState.AWAITING_FILTERS);
-                return new SendMessage(
-                        chatId, "Enter filters (format: key:value, e.g., 'user:john type:comment') or type 'skip':");
+                return new SendMessage(chatId, "Enter filters (format: key:value, e.g., 'user:john type:comment') or type 'skip':");
 
             case AWAITING_FILTERS:
                 if (messageText.equals("skip")) {
@@ -79,40 +92,41 @@ public class TrackCommand implements Command {
                 }
                 Map<String, String> filters = parseFilters(messageText);
                 if (filters.isEmpty()) {
-                    throw new FilterValidationException(
-                            "Invalid filter format. Please enter filters in the correct format.");
+                    throw new FilterValidationException("Invalid filter format. Please enter filters in the correct format.");
                 }
                 data.setFilters(filters);
 
                 try {
-                    AddLinkRequest request = new AddLinkRequest(data.getUrl(), data.getTags(), data.getFilters());
-                    scrapperApiClient.addLink(chatId, request);
+                    Map<String, String> effectiveFilters = data.getFilters() != null ? data.getFilters() : Map.of();
+                    String jsonMessage = objectMapper.writeValueAsString(
+                        Map.of("command", "add", "link", data.getUrl(), "filters", effectiveFilters)
+                    );
+                    kafkaTemplate.send(linkCommandsTopic, chatId.toString(), jsonMessage);
+                    redisTemplate.delete("tracked-links:" + chatId);
                     conversationManager.setUserState(chatId, ConversationState.IDLE);
                     conversationManager.clearTrackingData(chatId);
-                    return new SendMessage(chatId, "Link successfully added with specified tags and filters!");
+                    LOGGER.info("Sent link tracking request for chat {}: {}", chatId, data.getUrl());
+                    return new SendMessage(chatId, "Link tracking request sent successfully!");
                 } catch (Exception e) {
-                    LOGGER.error("Error adding link", e);
-                    return new SendMessage(chatId, "Error adding link. Please try again.");
+                    LOGGER.error("Error sending link tracking request for chat {}", chatId, e);
+                    return new SendMessage(chatId, "Error sending link tracking request. Please try again.");
                 }
 
             default:
                 return new SendMessage(chatId, "Unknown state. Please start over with /track");
         }
-
-        return null;
+        return new SendMessage(chatId, "Please continue the tracking process.");
     }
 
     private Map<String, String> parseFilters(String filterText) {
         Map<String, String> filters = new HashMap<>();
         String[] filterPairs = filterText.split("\\s+");
-
         for (String pair : filterPairs) {
             String[] keyValue = pair.split(":");
             if (keyValue.length == 2) {
                 filters.put(keyValue[0], keyValue[1]);
             }
         }
-
         return filters;
     }
 }

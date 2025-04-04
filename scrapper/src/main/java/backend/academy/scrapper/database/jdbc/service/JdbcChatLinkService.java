@@ -8,6 +8,7 @@ import backend.academy.scrapper.exception.ChatNotFoundException;
 import backend.academy.scrapper.service.ChatLinkService;
 import java.time.LocalDateTime;
 import java.util.Collection;
+import java.util.Map;
 import lombok.AllArgsConstructor;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Primary;
@@ -23,7 +24,7 @@ public class JdbcChatLinkService implements ChatLinkService {
     private final ChatDao chatDao;
 
     @Override
-    public void addLinkToChat(long chatId, long linkId) throws ChatNotFoundException {
+    public void addLinkToChat(long chatId, long linkId, Map<String, String> filters) throws ChatNotFoundException {
         if (!chatDao.existsById(chatId)) {
             throw new ChatNotFoundException("Chat with ID " + chatId + " not found.");
         }
@@ -31,7 +32,13 @@ public class JdbcChatLinkService implements ChatLinkService {
         chatLink.setChatId(chatId);
         chatLink.setLinkId(linkId);
         chatLink.setSharedAt(LocalDateTime.now());
+        chatLink.setFilters(filters); // Сохраняем фильтры
         chatLinkDao.add(chatLink);
+    }
+
+    @Override
+    public void addLinkToChat(long chatId, long linkId) throws ChatNotFoundException {
+        addLinkToChat(chatId, linkId, null); // Без фильтров
     }
 
     @Override
@@ -42,15 +49,15 @@ public class JdbcChatLinkService implements ChatLinkService {
     @Override
     public Collection<ChatLinkDTO> findAllLinksForChat(long chatId) {
         return chatLinkDao.findByChatId(chatId).stream()
-                .map(this::toChatLinkDTO)
-                .toList();
+            .map(this::toChatLinkDTO)
+            .toList();
     }
 
     @Override
     public Collection<ChatLinkDTO> findAllChatsForLink(long linkId) {
         return chatLinkDao.findByLinkId(linkId).stream()
-                .map(this::toChatLinkDTO)
-                .toList();
+            .map(this::toChatLinkDTO)
+            .toList();
     }
 
     @Override
@@ -59,6 +66,15 @@ public class JdbcChatLinkService implements ChatLinkService {
     }
 
     private ChatLinkDTO toChatLinkDTO(ChatLink chatLink) {
-        return new ChatLinkDTO(chatLink.getChatId(), chatLink.getLinkId(), chatLink.getSharedAt());
+        return new ChatLinkDTO(chatLink.getChatId(), chatLink.getLinkId(), chatLink.getFilters(), chatLink.getSharedAt());
     }
+    @Override
+    public Map<String, String> getFiltersForLink(long linkId) {
+        return chatLinkDao.findByLinkId(linkId).stream()
+            .findFirst()
+            .map(ChatLink::getFilters)
+            .orElse(Map.of());
+    }
+
+
 }

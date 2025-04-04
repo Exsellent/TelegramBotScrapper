@@ -1,6 +1,7 @@
 app:
   telegramToken: ${APP_TELEGRAM_TOKEN} #"${TELEGRAM_TOKEN}"
-
+batch:
+  notification-cron: "0 0 10 * * ?" # 10:00 ежедневно
 scrapper:
   api:
     base-url: http://localhost:8080/api
@@ -41,7 +42,6 @@ backoff:
     increment: 1000
     strategy: exponential
   retryableStatusCodes: [500, 502, 503, 504]
-
 
 
 

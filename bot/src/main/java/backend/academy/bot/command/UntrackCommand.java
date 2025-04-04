@@ -1,26 +1,41 @@
 package backend.academy.bot.command;
 
-import backend.academy.bot.client.ScrapperApiClient;
-import backend.academy.bot.dto.RemoveLinkRequest;
-import backend.academy.bot.exception.ChatNotFoundException;
-import backend.academy.bot.exception.LinkNotFoundException;
+import backend.academy.bot.dto.LinkResponse;
 import backend.academy.bot.utils.LinkParser;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.pengrad.telegrambot.model.Update;
 import com.pengrad.telegrambot.request.SendMessage;
+import java.util.List;
+import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Component;
+
 
 @Component
 public class UntrackCommand implements Command {
-
     private static final Logger LOGGER = LoggerFactory.getLogger(UntrackCommand.class);
-    private final ScrapperApiClient scrapperApiClient;
+
+    private final KafkaTemplate<String, String> kafkaTemplate;
+    private final RedisTemplate<String, List<LinkResponse>> redisTemplate;
+    private final ObjectMapper objectMapper;
+    private final String linkCommandsTopic;
 
     @Autowired
-    public UntrackCommand(ScrapperApiClient scrapperApiClient) {
-        this.scrapperApiClient = scrapperApiClient;
+    public UntrackCommand(
+        KafkaTemplate<String, String> kafkaTemplate,
+        RedisTemplate<String, List<LinkResponse>> redisTemplate,
+        ObjectMapper objectMapper,
+        @Value("${app.kafka.topics.link-commands}") String linkCommandsTopic
+    ) {
+        this.kafkaTemplate = kafkaTemplate;
+        this.redisTemplate = redisTemplate;
+        this.objectMapper = objectMapper;
+        this.linkCommandsTopic = linkCommandsTopic;
     }
 
     @Override
@@ -30,7 +45,7 @@ public class UntrackCommand implements Command {
 
     @Override
     public String description() {
-        return "Stop tracking the link";
+        return "Stop tracking a specific link";
     }
 
     @Override
@@ -39,20 +54,18 @@ public class UntrackCommand implements Command {
         String[] parts = update.message().text().split(" ", 2);
 
         if (parts.length < 2 || !LinkParser.isValidURL(parts[1])) {
-            return new SendMessage(chatId, "Enter the correct URL to delete.");
+            return new SendMessage(chatId, "Enter the correct URL to delete (e.g., /untrack https://example.com).");
         }
 
         try {
-            scrapperApiClient.removeLink(chatId, new RemoveLinkRequest(parts[1]));
-            LOGGER.info("Link removed from tracking: {}", parts[1]);
-            return new SendMessage(chatId, "Link removed from tracking: " + parts[1]);
-        } catch (LinkNotFoundException e) {
-            return new SendMessage(chatId, "This link is not tracked.");
-        } catch (ChatNotFoundException e) {
-            return new SendMessage(chatId, "First, register using /start.");
+            String jsonMessage = objectMapper.writeValueAsString(Map.of("command", "remove", "link", parts[1]));
+            kafkaTemplate.send(linkCommandsTopic, chatId.toString(), jsonMessage);
+            redisTemplate.delete("tracked-links:" + chatId);
+            LOGGER.info("Sent link removal request for chat {}: {}", chatId, parts[1]);
+            return new SendMessage(chatId, "Link removal request sent: " + parts[1]);
         } catch (Exception e) {
-            LOGGER.error("Error when deleting a link", e);
-            return new SendMessage(chatId, "Error when deleting a link.");
+            LOGGER.error("Error sending link removal request for chat {}", chatId, e);
+            return new SendMessage(chatId, "Error sending link removal request.");
         }
     }
 }

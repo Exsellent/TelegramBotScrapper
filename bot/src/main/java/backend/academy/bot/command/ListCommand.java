@@ -1,6 +1,8 @@
 package backend.academy.bot.command;
 
+import backend.academy.bot.client.ScrapperApiClient;
 import backend.academy.bot.dto.LinkResponse;
+import backend.academy.bot.dto.ListLinksResponse;
 import com.pengrad.telegrambot.model.Update;
 import com.pengrad.telegrambot.request.SendMessage;
 import org.slf4j.Logger;
@@ -20,16 +22,19 @@ public class ListCommand implements Command {
     private static final Logger LOGGER = LoggerFactory.getLogger(ListCommand.class);
     private final KafkaTemplate<String, List<LinkResponse>> kafkaTemplate;
     private final RedisTemplate<String, List<LinkResponse>> redisTemplate;
+    private final ScrapperApiClient scrapperApiClient;
     private final String linkUpdatesTopic;
 
     @Autowired
     public ListCommand(
         KafkaTemplate<String, List<LinkResponse>> kafkaTemplate,
         RedisTemplate<String, List<LinkResponse>> redisTemplate,
+        ScrapperApiClient scrapperApiClient,
         @Value("${app.kafka.topics.link-updates}") String linkUpdatesTopic
     ) {
         this.kafkaTemplate = kafkaTemplate;
         this.redisTemplate = redisTemplate;
+        this.scrapperApiClient = scrapperApiClient;
         this.linkUpdatesTopic = linkUpdatesTopic;
     }
 
@@ -57,11 +62,10 @@ public class ListCommand implements Command {
                 return buildResponse(chatId, cachedLinks);
             }
 
-            // Запрашиваем через Kafka
-            kafkaTemplate.send(linkUpdatesTopic, chatId.toString(), null); // Отправляем запрос в топик
-            // Здесь нужно дождаться ответа от scrapper (асинхронно через @KafkaListener в другом месте)
-
-            return new SendMessage(chatId, "Fetching links, please wait...");
+            // Получаем список ссылок от scrapper через HTTP
+            ListLinksResponse response = scrapperApiClient.getAllLinks(chatId);
+            List<LinkResponse> links = response.getLinks();
+            return buildResponse(chatId, links);
         } catch (Exception e) {
             LOGGER.error("Error handling /list command", e);
             return new SendMessage(chatId, "An error occurred while fetching links.");
