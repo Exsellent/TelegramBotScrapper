@@ -5,7 +5,7 @@ import java.util.Collection;
 import java.util.Map;
 
 public interface ChatLinkService {
-    void addLinkToChat(long chatId, long linkId, Map<String, String> filters); // Обновляем метод для фильтров
+    void addLinkToChat(long chatId, long linkId, Map<String, String> filters);
 
     void addLinkToChat(long chatId, long linkId);
 

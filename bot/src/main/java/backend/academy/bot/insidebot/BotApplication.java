@@ -12,7 +12,7 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 @EnableCaching
 @EnableScheduling
 @ComponentScan(basePackages = {"backend.academy.bot"})
-@EnableConfigurationProperties(ApplicationConfig.class)
+
 public class BotApplication {
     public static void main(String[] args) {
 

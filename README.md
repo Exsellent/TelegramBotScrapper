@@ -159,7 +159,8 @@ scrapper:
    docker exec -it <postgresql-container-name> psql -U postgres -d scrapper -c "\dt"
    ```
 
-   Ожидаемый вывод: таблицы `link`, `tags`, `link_tags`, `chat`, `chat_link`.
+   Ожидаемый вывод: таблицы `link`, `
+5. `, `link_tags`, `chat`, `chat_link`.
 
 ### Запуск Scrapper
 
@@ -307,4 +308,3 @@ docker-compose down
 ```
 
 ---
-

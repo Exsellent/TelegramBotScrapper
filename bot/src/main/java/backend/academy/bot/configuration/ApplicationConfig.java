@@ -2,35 +2,28 @@ package backend.academy.bot.configuration;
 
 import com.pengrad.telegrambot.TelegramBot;
 import jakarta.annotation.PostConstruct;
-import lombok.Getter;
-import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.boot.context.properties.ConfigurationProperties;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.validation.annotation.Validated;
 
-@Getter
-@Setter // Lombok автоматически генерирует сеттеры для свойств
 @Slf4j
-@Validated
 @Configuration
-@ConfigurationProperties(prefix = "app")
 public class ApplicationConfig {
 
-    private String telegramToken; // Используем camelCase для соответствия свойству
+    @Value("${app.telegram-token}")
+    private String telegramToken;
 
     @PostConstruct
     public void validateConfig() {
         log.info("Current working directory: {}", System.getProperty("user.dir"));
         log.info("Attempting to read token configuration...");
-
+        log.info("Telegram token read: {}", telegramToken);
         if (telegramToken == null || telegramToken.trim().isEmpty()) {
             String errorMessage = "Telegram token not configured - please ensure APP_TELEGRAM_TOKEN is set";
             log.error(errorMessage);
             throw new IllegalStateException(errorMessage);
         }
-
         log.info("Telegram token successfully loaded");
     }
 

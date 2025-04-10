@@ -6,6 +6,9 @@ app:
     force-check-delay: PT10S
   database-access-type: JDBC # или JPA
   migrations-dir: classpath:migrations
+kafka:
+  topics:
+    link-commands: link-updates
 
 bot:
   api:
@@ -16,7 +19,7 @@ bot:
     access-token: ${STACKOVERFLOW_ACCESS_TOKEN:PUBLIC_STACKOVERFLOW_ACCESS_TOKEN}
 
 server:
-  port: 8080
+  port: 8081
   error:
     include-message: ALWAYS
     include-binding-errors: ALWAYS
@@ -25,18 +28,26 @@ server:
 
 spring:
   datasource:
-    url: jdbc:postgresql://localhost:5432/scrapper
-    username: postgres
+    url: jdbc:postgresql://postgresql:5432/scrapper
+    username: exsellent
     password: ${POSTGRES_PASSWORD:default_password}
     driver-class-name: org.postgresql.Driver
+
+  data:
+    redis:
+      host: redis
+      port: 6379
+      timeout: 6000
+
   jpa:
     hibernate:
-      ddl-auto: none # Отключаем автоматическое создание схемы Hibernate
+      ddl-auto: none
     properties:
       hibernate:
         dialect: org.hibernate.dialect.PostgreSQLDialect
   liquibase:
-    enabled: false
+    enabled: ${SPRING_LIQUIBASE_ENABLED:true}
+
   jackson:
     deserialization:
       fail-on-unknown-properties: false

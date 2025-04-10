@@ -5,17 +5,17 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
 import jakarta.persistence.IdClass;
 import jakarta.persistence.Table;
-import java.time.LocalDateTime;
-import java.util.Map;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 import lombok.ToString;
 
+import java.time.LocalDateTime;
+
 @Entity
 @Table(name = "chat_link")
-@IdClass(ChatLinkId.class) // Предполагается, что есть класс для составного ключа
+@IdClass(ChatLinkId.class)
 @Getter
 @Setter
 @NoArgsConstructor
@@ -32,5 +32,5 @@ public class ChatLink {
     private LocalDateTime sharedAt;
 
     @Column(name = "filters", columnDefinition = "json")
-    private Map<String, String> filters;
+    private String filters;
 }

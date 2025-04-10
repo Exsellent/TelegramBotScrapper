@@ -40,6 +40,7 @@ public class TrackCommand implements Command {
         this.redisTemplate = redisTemplate;
         this.objectMapper = objectMapper;
         this.linkCommandsTopic = linkCommandsTopic;
+        LOGGER.info("TrackCommand initialized with linkCommandsTopic: {}", linkCommandsTopic);
     }
 
     @Override

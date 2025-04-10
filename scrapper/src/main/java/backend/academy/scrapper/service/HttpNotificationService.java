@@ -18,6 +18,6 @@ public class HttpNotificationService implements NotificationService {
 
     @Override
     public void sendNotification(LinkUpdateRequest update) {
-        botApiClient.postUpdate(update); // Исправил sendUpdate на postUpdate
+        botApiClient.postUpdate(update);
     }
 }

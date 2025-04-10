@@ -22,17 +22,20 @@ public class SettingsCommand implements Command {
 
     @Override
     public String description() {
-        return "Set notification mode: instant or daily digest";
+        return "Set notification mode: instant or digest";
     }
 
     @Override
     public SendMessage handle(Update update) {
         Long chatId = update.message().chat().id();
         String[] parts = update.message().text().split(" ", 2);
+
         if (parts.length < 2 || (!parts[1].equals("instant") && !parts[1].equals("digest"))) {
             return new SendMessage(chatId, "Usage: /settings [instant|digest]");
         }
-        redisTemplate.opsForValue().set("notification-mode:" + chatId, parts[1]);
-        return new SendMessage(chatId, "Notification mode set to: " + parts[1]);
+
+        String mode = parts[1];
+        redisTemplate.opsForValue().set("notification-mode:" + chatId, mode);
+        return new SendMessage(chatId, "Notification mode set to: " + mode);
     }
 }

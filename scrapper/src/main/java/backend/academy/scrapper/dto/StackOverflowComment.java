@@ -9,7 +9,7 @@ import lombok.*;
 @Setter
 @AllArgsConstructor
 @NoArgsConstructor
-@ToString(exclude = "owner") // Исключаем owner, чтобы избежать циклических ссылок
+@ToString(exclude = "owner")
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class StackOverflowComment implements Comment {
     @JsonProperty("body")

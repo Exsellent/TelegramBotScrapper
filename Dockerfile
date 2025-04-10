@@ -1,5 +1,6 @@
 FROM openjdk:23-jdk-slim
-COPY bot/target/link-tracker-bot.jar /app/link-tracker-bot.jar
-COPY scrapper/target/scrapper.jar /app/scrapper.jar
+ARG JAR_FILE
 WORKDIR /app
-CMD ["java", "-jar", "link-tracker-bot.jar"]
+COPY ${JAR_FILE} /app/app.jar
+RUN apt-get update && apt-get install -y iputils-ping net-tools telnet netcat-openbsd curl && rm -rf /var/lib/apt/lists/*
+CMD ["java", "-jar", "/app/app.jar"]

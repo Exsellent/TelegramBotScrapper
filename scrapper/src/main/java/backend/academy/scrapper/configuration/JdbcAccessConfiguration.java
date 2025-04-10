@@ -13,6 +13,7 @@ import backend.academy.scrapper.service.GitHubService;
 import backend.academy.scrapper.service.LinkService;
 import backend.academy.scrapper.service.NotificationService;
 import backend.academy.scrapper.service.StackOverflowService;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
@@ -28,8 +29,8 @@ public class JdbcAccessConfiguration {
     }
 
     @Bean
-    public ChatLinkService chatLinkService(ChatLinkDao chatLinkDao, ChatDao chatDao) {
-        return new JdbcChatLinkService(chatLinkDao, chatDao);
+    public ChatLinkService chatLinkService(ChatLinkDao chatLinkDao, ChatDao chatDao, ObjectMapper objectMapper) {
+        return new JdbcChatLinkService(chatLinkDao, chatDao, objectMapper);
     }
 
     @Bean
@@ -44,18 +45,18 @@ public class JdbcAccessConfiguration {
 
     @Bean
     public LinkUpdaterScheduler linkUpdaterScheduler(
-            LinkService linkService,
-            ChatLinkService chatLinkService,
-            GitHubService gitHubService,
-            StackOverflowService stackOverflowService,
-            NotificationService notificationService, // Заменили BotApiClient
-            @Value("${app.check-interval-minutes}") int checkIntervalMinutes) {
+        LinkService linkService,
+        ChatLinkService chatLinkService,
+        GitHubService gitHubService,
+        StackOverflowService stackOverflowService,
+        NotificationService notificationService,
+        @Value("${app.check-interval-minutes}") int checkIntervalMinutes) {
         return new LinkUpdaterScheduler(
-                linkService,
-                chatLinkService,
-                gitHubService,
-                stackOverflowService,
-                notificationService,
-                checkIntervalMinutes);
+            linkService,
+            chatLinkService,
+            gitHubService,
+            stackOverflowService,
+            notificationService,
+            checkIntervalMinutes);
     }
 }

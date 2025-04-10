@@ -6,7 +6,7 @@ import java.util.Map;
 public class ChatLinkDTO {
     private final long chatId;
     private final long linkId;
-    private final LocalDateTime sharedAt; // Возвращаем поле
+    private final LocalDateTime sharedAt;
     private final Map<String, String> filters;
 
     public ChatLinkDTO(long chatId, long linkId, Map<String, String> filters, LocalDateTime sharedAt) {

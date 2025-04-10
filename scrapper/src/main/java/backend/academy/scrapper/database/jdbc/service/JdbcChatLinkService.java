@@ -6,13 +6,15 @@ import backend.academy.scrapper.domain.ChatLink;
 import backend.academy.scrapper.dto.ChatLinkDTO;
 import backend.academy.scrapper.exception.ChatNotFoundException;
 import backend.academy.scrapper.service.ChatLinkService;
-import java.time.LocalDateTime;
-import java.util.Collection;
-import java.util.Map;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.AllArgsConstructor;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Primary;
 import org.springframework.stereotype.Service;
+
+import java.time.LocalDateTime;
+import java.util.Collection;
+import java.util.Map;
 
 @Service
 @AllArgsConstructor
@@ -22,6 +24,7 @@ public class JdbcChatLinkService implements ChatLinkService {
 
     private final ChatLinkDao chatLinkDao;
     private final ChatDao chatDao;
+    private final ObjectMapper objectMapper;
 
     @Override
     public void addLinkToChat(long chatId, long linkId, Map<String, String> filters) throws ChatNotFoundException {
@@ -32,7 +35,11 @@ public class JdbcChatLinkService implements ChatLinkService {
         chatLink.setChatId(chatId);
         chatLink.setLinkId(linkId);
         chatLink.setSharedAt(LocalDateTime.now());
-        chatLink.setFilters(filters); // Сохраняем фильтры
+        try {
+            chatLink.setFilters(filters != null ? objectMapper.writeValueAsString(filters) : null);
+        } catch (Exception e) {
+            throw new RuntimeException("Error serializing filters to JSON", e);
+        }
         chatLinkDao.add(chatLink);
     }
 
@@ -49,15 +56,15 @@ public class JdbcChatLinkService implements ChatLinkService {
     @Override
     public Collection<ChatLinkDTO> findAllLinksForChat(long chatId) {
         return chatLinkDao.findByChatId(chatId).stream()
-                .map(this::toChatLinkDTO)
-                .toList();
+            .map(this::toChatLinkDTO)
+            .toList();
     }
 
     @Override
     public Collection<ChatLinkDTO> findAllChatsForLink(long linkId) {
         return chatLinkDao.findByLinkId(linkId).stream()
-                .map(this::toChatLinkDTO)
-                .toList();
+            .map(this::toChatLinkDTO)
+            .toList();
     }
 
     @Override
@@ -66,15 +73,27 @@ public class JdbcChatLinkService implements ChatLinkService {
     }
 
     private ChatLinkDTO toChatLinkDTO(ChatLink chatLink) {
-        return new ChatLinkDTO(
-                chatLink.getChatId(), chatLink.getLinkId(), chatLink.getFilters(), chatLink.getSharedAt());
+        try {
+            Map<String, String> filters = chatLink.getFilters() != null ?
+                objectMapper.readValue(chatLink.getFilters(), Map.class) : null;
+            return new ChatLinkDTO(chatLink.getChatId(), chatLink.getLinkId(), filters, chatLink.getSharedAt());
+        } catch (Exception e) {
+            throw new RuntimeException("Error deserializing filters from JSON", e);
+        }
     }
 
     @Override
     public Map<String, String> getFiltersForLink(long linkId) {
         return chatLinkDao.findByLinkId(linkId).stream()
-                .findFirst()
-                .map(ChatLink::getFilters)
-                .orElse(Map.of());
+            .findFirst()
+            .map(chatLink -> {
+                try {
+                    return chatLink.getFilters() != null ?
+                        objectMapper.readValue(chatLink.getFilters(), Map.class) : Map.of();
+                } catch (Exception e) {
+                    throw new RuntimeException("Error deserializing filters from JSON", e);
+                }
+            })
+            .orElse(Map.of());
     }
 }

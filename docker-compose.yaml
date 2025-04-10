@@ -1,83 +1,85 @@
 services:
   postgresql:
     image: postgres:17
+    environment:
+      - POSTGRES_DB=scrapper
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
     ports:
       - "5432:5432"
-    environment:
-      POSTGRES_DB: scrapper
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: 21Kaharaiona
-    volumes:
-      - pg-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d scrapper"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
     networks:
       - backend
 
   redis:
-    image: redis:latest
+    image: redis:7
+    command: [ "redis-server", "/usr/local/etc/redis/redis.conf" ]
+    volumes:
+      - ./redis.conf:/usr/local/etc/redis/redis.conf
     ports:
       - "6379:6379"
-    volumes:
-      - redis-data:/data
+    healthcheck:
+      test: [ "CMD", "redis-cli", "ping" ]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - backend
+
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.2.1
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+    healthcheck:
+      test: ["CMD-SHELL", "echo stat | nc localhost 2181"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
     networks:
       - backend
 
   kafka:
-    image: apache/kafka:3.7.0
+    image: confluentinc/cp-kafka:7.2.1
     ports:
       - "9092:9092"
-      - "9093:9093"
     environment:
-      KAFKA_NODE_ID: 1
-      KAFKA_PROCESS_ROLES: broker,controller
-      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092,CONTROLLER://0.0.0.0:9093
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT
       KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
-      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,CONTROLLER:PLAINTEXT
-      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
-      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
-      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093
+      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
-      KAFKA_LOG_DIRS: /var/lib/kafka/data
-      CLUSTER_ID: "MkU3OEVBNTcwNTJENDM2Qk"  # Уникальный ID для кластера
-    volumes:
-      - kafka-data:/var/lib/kafka/data
-    command: >
-      sh -c "
-        echo 'Generating Kafka configuration...' &&
-        /opt/kafka/bin/kafka-storage.sh random-uuid > /tmp/cluster-id &&
-        /opt/kafka/bin/kafka-storage.sh format -t $(cat /tmp/cluster-id) -c /opt/kafka/config/kraft/server.properties &&
-        echo 'Starting Kafka server...' &&
-        /opt/kafka/bin/kafka-server-start.sh /opt/kafka/config/kraft/server.properties &
-        echo 'Waiting for Kafka to be ready...' &&
-        sleep 30 &&
-        echo 'Creating topics...' &&
-        /opt/kafka/bin/kafka-topics.sh --create --topic link-updates --bootstrap-server kafka:9092 --partitions 1 --replication-factor 1 --if-not-exists &&
-        /opt/kafka/bin/kafka-topics.sh --create --topic link-updates-dlq --bootstrap-server kafka:9092 --partitions 1 --replication-factor 1 --if-not-exists &&
-        echo 'Topics created, keeping container alive...' &&
-        wait
-      "
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+    depends_on:
+      zookeeper:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "kafka-topics --bootstrap-server localhost:9092 --list"]
+      interval: 20s
+      timeout: 10s
+      retries: 10
+      start_period: 40s
     networks:
       - backend
 
-  migrations:
-    image: custom-liquibase:4.29
+  kafka-setup:
+    image: confluentinc/cp-kafka:7.2.1
     depends_on:
-      - postgresql
-    command:
-      - wait-for-it
-      - postgresql:5432
-      - --timeout=60
-      - --
-      - liquibase
-      - --log-level=DEBUG
-      - --searchPath=/changesets/db
-      - --changelog-file=changelog-master.xml
-      - --driver=org.postgresql.Driver
-      - --url=jdbc:postgresql://postgresql:5432/scrapper
-      - --username=postgres
-      - --password=21Kaharaiona
-      - update
-    volumes:
-      - ./migrations:/changesets
+      kafka:
+        condition: service_healthy
+    command: >
+      bash -c "
+        echo 'Waiting for Kafka to be ready...' &&
+        kafka-topics --bootstrap-server kafka:9092 --create --if-not-exists --topic link-updates --partitions 1 --replication-factor 1 &&
+        kafka-topics --bootstrap-server kafka:9092 --create --if-not-exists --topic link-commands --partitions 1 --replication-factor 1 &&
+        kafka-topics --bootstrap-server kafka:9092 --create --if-not-exists --topic link-updates-dlq --partitions 1 --replication-factor 1 &&
+        echo 'Successfully created Kafka topics'
+      "
     networks:
       - backend
 
@@ -85,38 +87,93 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+      args:
+        JAR_FILE: scrapper/target/scrapper.jar
     ports:
-      - "8081:8081"
+      - "8082:8081"
     depends_on:
-      - postgresql
-      - kafka
+      postgresql:
+        condition: service_healthy
+      kafka-setup:
+        condition: service_completed_successfully
     environment:
-      - SPRING_DATASOURCE_PASSWORD=21Kaharaiona
-    command: ["java", "-jar", "/app/scrapper.jar"]
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://postgresql:5432/scrapper
+      - SPRING_DATASOURCE_USERNAME=postgres
+      - SPRING_DATASOURCE_PASSWORD=${POSTGRES_PASSWORD}
+      - SPRING_DATASOURCE_DRIVER_CLASS_NAME=org.postgresql.Driver
+      - SPRING_REDIS_HOST=redis
+      - SPRING_REDIS_PORT=6379
+      - APP_DATABASE_ACCESS_TYPE=JDBC
+      - SPRING_LIQUIBASE_ENABLED=false
+      - APP_CHECK_INTERVAL_MINUTES=5
+      - APP_KAFKA_TOPICS_LINK_UPDATES=link-updates
+      - APP_MESSAGE_TRANSPORT=Kafka
+      - APP_KAFKA_TOPICS_NOTIFICATIONS=link-updates
+      - APP_KAFKA_TOPICS_DLQ=link-updates-dlq
+      - APP_KAFKA_TOPICS_LINK_COMMANDS=link-commands
+      - SCRAPPER_BOT_GITHUB_TOKEN=your_github_token_here
+      - SPRING_KAFKA_BOOTSTRAP_SERVERS=kafka:9092
+      - LOGGING_LEVEL_ORG_APACHE_KAFKA=DEBUG
+      - SERVER_STARTUP_DELAY=30000
+      - SERVER_ADDRESS=0.0.0.0
+      - LOGGING_LEVEL_ORG_SPRINGFRAMEWORK=DEBUG
+      - LOGGING_LEVEL_ROOT=INFO
+      - LOGGING_LEVEL_java-exsellent=DEBUG
+    command: [ "java", "-jar", "/app/app.jar" ]
+    healthcheck:
+      test: [ "CMD-SHELL", "wget -q --spider http://0.0.0.0:8081/api/actuator/health || exit 1" ]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 60s
     networks:
       - backend
+    restart: unless-stopped
 
   bot:
     build:
       context: .
       dockerfile: Dockerfile
+      args:
+        JAR_FILE: bot/target/link-tracker-bot.jar
     ports:
       - "8080:8080"
     depends_on:
-      - postgresql
-      - kafka
-      - redis
+      postgresql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      kafka-setup:
+        condition: service_completed_successfully
+      scrapper:
+        condition: service_started
     environment:
-      - SPRING_DATASOURCE_PASSWORD=21Kaharaiona
-    command: ["java", "-jar", "/app/link-tracker-bot.jar"]
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://postgresql:5432/scrapper
+      - SPRING_DATASOURCE_USERNAME=postgres
+      - SPRING_DATASOURCE_PASSWORD=${POSTGRES_PASSWORD}
+      - SPRING_DATASOURCE_DRIVER_CLASS_NAME=org.postgresql.Driver
+      - SPRING_REDIS_HOST=redis
+      - SPRING_REDIS_PORT=6379
+      - SCRAPPER_API_BASE_URL=http://scrapper:8081/api
+      - APP_KAFKA_TOPICS_LINK_UPDATES=link-updates
+      - APP_KAFKA_TOPICS_LINK_COMMANDS=link-commands
+      - APP_KAFKA_TOPICS_NOTIFICATIONS=link-updates
+      - SPRING_KAFKA_BOOTSTRAP_SERVERS=kafka:9092
+      - BACKOFF_SETTINGS_INITIAL_DELAY=1000
+      - BACKOFF_SETTINGS_MULTIPLIER=2.0
+      - BACKOFF_SETTINGS_MAX_RETRIES=10
+      - CONNECTION_RETRY_ENABLED=true
+      - SERVER_STARTUP_DELAY=60000
+      - LOGGING_LEVEL_ORG_SPRINGFRAMEWORK=DEBUG
+      - LOGGING_LEVEL_ORG_APACHE_KAFKA=DEBUG
+      - LOGGING_LEVEL_ROOT=INFO
+    env_file:
+      - bot/.env
+    command: [ "java", "-jar", "/app/app.jar" ]
     networks:
       - backend
+    restart: unless-stopped
 
 networks:
   backend:
     driver: bridge
-
-volumes:
-  pg-data:
-  redis-data:
-  kafka-data:
