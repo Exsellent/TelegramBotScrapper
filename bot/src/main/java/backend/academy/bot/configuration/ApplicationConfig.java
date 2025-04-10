@@ -11,14 +11,14 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.validation.annotation.Validated;
 
 @Getter
-@Setter // Lombok автоматически генерирует сеттеры для свойств
+@Setter
 @Slf4j
 @Validated
 @Configuration
 @ConfigurationProperties(prefix = "app")
 public class ApplicationConfig {
 
-    private String telegramToken; // Используем camelCase для соответствия свойству
+    private String telegramToken;
 
     @PostConstruct
     public void validateConfig() {

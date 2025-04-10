@@ -10,13 +10,10 @@ import org.springframework.data.repository.query.Param;
 
 public interface ChatLinkRepository extends JpaRepository<ChatLink, ChatLinkId> {
 
-    @Query("SELECT cl FROM ChatLink cl WHERE cl.chatId = :chatId")
     List<ChatLink> findByChatId(@Param("chatId") long chatId);
 
-    @Query("SELECT cl FROM ChatLink cl WHERE cl.linkId = :linkId")
     List<ChatLink> findByLinkId(@Param("linkId") long linkId);
 
-    @Query("SELECT COUNT(cl) > 0 FROM ChatLink cl WHERE cl.linkId = :linkId")
     boolean existsByLinkId(@Param("linkId") long linkId);
 
     @Modifying

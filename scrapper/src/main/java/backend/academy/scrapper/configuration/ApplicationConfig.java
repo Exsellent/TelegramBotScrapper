@@ -11,7 +11,6 @@ public record ApplicationConfig(
         @NotNull Scheduler scheduler,
         AccessType databaseAccessType,
         String migrationsDir,
-        @NotNull Integer checkIntervalMinutes // Добавляем новое поле
-        ) {
+        @NotNull Integer checkIntervalMinutes) {
     public record Scheduler(boolean enable, @NotNull Duration interval, @NotNull Duration forceCheckDelay) {}
 }

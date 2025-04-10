@@ -10,7 +10,6 @@ import org.slf4j.LoggerFactory;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
-import org.springframework.transaction.annotation.Transactional;
 
 @Repository
 @AllArgsConstructor
@@ -22,7 +21,6 @@ public class JdbcChatDao implements ChatDao {
     private final JdbcTemplate jdbcTemplate;
 
     @Override
-    @Transactional
     public void add(ChatDTO chat) {
         LOGGER.info("Adding chat: {}", chat);
         String sql = "INSERT INTO chat (chat_id, created_at) VALUES (?, ?)";
@@ -31,7 +29,6 @@ public class JdbcChatDao implements ChatDao {
     }
 
     @Override
-    @Transactional
     public void remove(long chatId) {
         LOGGER.info("Removing chat with ID: {}", chatId);
         int rowsAffected = jdbcTemplate.update("DELETE FROM chat WHERE chat_id = ?", chatId);
@@ -42,7 +39,7 @@ public class JdbcChatDao implements ChatDao {
     public Collection<ChatDTO> findAll() {
         LOGGER.info("Finding all chats");
         Collection<ChatDTO> chats = jdbcTemplate.query(
-                "SELECT * FROM chat",
+                "SELECT chat_id, created_at FROM chat",
                 (rs, rowNum) -> new ChatDTO(
                         rs.getLong("chat_id"), rs.getTimestamp("created_at").toLocalDateTime()));
         LOGGER.info("Found {} chats", chats.size());
@@ -54,7 +51,7 @@ public class JdbcChatDao implements ChatDao {
         LOGGER.info("Checking if chat exists with ID: {}", chatId);
         Integer count = jdbcTemplate.queryForObject(
                 "SELECT COUNT(*) FROM chat WHERE chat_id = ?", new Object[] {chatId}, Integer.class);
-        boolean exists = count != null && count > 0;
+        boolean exists = count > 0;
         LOGGER.info("Chat exists: {}", exists);
         return exists;
     }
