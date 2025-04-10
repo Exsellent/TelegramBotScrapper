@@ -38,6 +38,8 @@
             <Bug pattern="CRLF_INJECTION_LOGS"/>
             <Bug pattern="SLF4J_FORMAT_SHOULD_BE_CONST"/>
             <Bug pattern="DCN_NULLPOINTER_EXCEPTION"/>
+            <!-- Добавляем исключение для ложных срабатываний с Java 23 -->
+            <Bug pattern="NP_NULL_ON_SOME_PATH_FROM_RETURN_VALUE"/>
         </Or>
     </Match>
     <!-- Kotlin edge cases -->
@@ -55,7 +57,6 @@
             <Bug pattern="NP_NONNULL_PARAM_VIOLATION"/>
             <Bug pattern="NP_NONNULL_RETURN_VIOLATION"/>
             <Bug pattern="NP_NULL_ON_SOME_PATH"/>
-            <Bug pattern="NP_NULL_ON_SOME_PATH_FROM_RETURN_VALUE"/>
             <Bug pattern="NP_NULL_PARAM_DEREF"/>
             <Bug pattern="NP_PARAMETER_MUST_BE_NONNULL_BUT_MARKED_AS_NULLABLE"/>
             <Bug pattern="RCN_REDUNDANT_NULLCHECK_OF_NONNULL_VALUE"/>
