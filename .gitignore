@@ -47,3 +47,4 @@ bot/src/main/resources/application-local.yml
 checklist.md
 checklist3.md
 redis.conf
+redis-env.txt
