@@ -52,4 +52,9 @@ public class RateLimitingFilter implements Filter {
             chain.doFilter(servletRequest, servletResponse);
         }
     }
+
+    // Метод для очистки счетчика в тестах
+    public static void clearRequestCounts() {
+        requestCounts.clear();
+    }
 }

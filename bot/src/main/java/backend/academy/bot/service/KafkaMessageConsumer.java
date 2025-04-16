@@ -19,10 +19,9 @@ public class KafkaMessageConsumer {
 
     @Autowired
     public KafkaMessageConsumer(
-        TelegramBotService telegramBotService,
-        RedisTemplate<String, String> redisTemplate,
-        ObjectMapper objectMapper
-    ) {
+            TelegramBotService telegramBotService,
+            RedisTemplate<String, String> redisTemplate,
+            ObjectMapper objectMapper) {
         this.telegramBotService = telegramBotService;
         this.redisTemplate = redisTemplate;
         this.objectMapper = objectMapper;

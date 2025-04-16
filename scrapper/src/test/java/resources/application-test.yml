@@ -1,18 +1,24 @@
-spring:
-  datasource:
-    url: jdbc:tc:postgresql:17:///scrapper
-    username: java-exsellent-postgresql-1
-    password: 21Kaharaiona
-    driver-class-name: org.testcontainers.jdbc.ContainerDatabaseDriver
-  jpa:
-    hibernate:
-      ddl-auto: none
-    properties:
+  spring:
+    liquibase:
+      enabled: false
+    jpa:
       hibernate:
-        dialect: org.hibernate.dialect.PostgreSQLDialect
-  liquibase:
-    enabled: false # Отключаем Liquibase в Spring Boot, так как миграции запускаются вручную
-logging:
-  level:
-    liquibase: DEBUG
-    backend.academy.scrapper.database: DEBUG
+        ddl-auto: none
+      properties:
+        hibernate:
+          dialect: org.hibernate.dialect.PostgreSQLDialect
+
+  app:
+    database-access-type: jdbc
+    scheduler:
+      enable: false
+      interval: PT1M
+      force-check-delay: PT1M
+    check-interval-minutes: 5
+    migrations-dir: db
+
+  logging:
+    level:
+      liquibase: DEBUG
+      backend.academy.scrapper.database: DEBUG
+      org.springframework: DEBUG

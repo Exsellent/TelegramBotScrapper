@@ -42,8 +42,6 @@ public class BackOffConfig {
         if (settings == null) {
             return new ExponentialBackOff(1000L, 2.0); // Значения по умолчанию
         }
-        return new ExponentialBackOff(
-            settings.getInitialDelay(),
-            settings.getMultiplier());
+        return new ExponentialBackOff(settings.getInitialDelay(), settings.getMultiplier());
     }
 }

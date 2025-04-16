@@ -36,7 +36,8 @@ public class JpaAccessConfiguration {
     }
 
     @Bean
-    public ChatLinkService chatLinkService(ChatLinkRepository chatLinkRepository, ChatRepository chatRepository, ObjectMapper objectMapper) {
+    public ChatLinkService chatLinkService(
+            ChatLinkRepository chatLinkRepository, ChatRepository chatRepository, ObjectMapper objectMapper) {
         return new JpaChatLinkService(chatLinkRepository, chatRepository, objectMapper);
     }
 
@@ -52,18 +53,18 @@ public class JpaAccessConfiguration {
 
     @Bean
     public LinkUpdaterScheduler linkUpdaterScheduler(
-        LinkService linkService,
-        ChatLinkService chatLinkService,
-        GitHubService gitHubService,
-        StackOverflowService stackOverflowService,
-        NotificationService notificationService,
-        @Value("${app.check-interval-minutes}") int checkIntervalMinutes) {
+            LinkService linkService,
+            ChatLinkService chatLinkService,
+            GitHubService gitHubService,
+            StackOverflowService stackOverflowService,
+            NotificationService notificationService,
+            @Value("${app.check-interval-minutes}") int checkIntervalMinutes) {
         return new LinkUpdaterScheduler(
-            linkService,
-            chatLinkService,
-            gitHubService,
-            stackOverflowService,
-            notificationService,
-            checkIntervalMinutes);
+                linkService,
+                chatLinkService,
+                gitHubService,
+                stackOverflowService,
+                notificationService,
+                checkIntervalMinutes);
     }
 }

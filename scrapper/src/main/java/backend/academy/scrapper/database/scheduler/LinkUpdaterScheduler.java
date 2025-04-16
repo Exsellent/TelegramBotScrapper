@@ -114,82 +114,36 @@ public class LinkUpdaterScheduler {
                 return gitHubService
                         .getPullRequestInfo(owner, repo, pullRequestId)
                         .flatMap(combinedInfo -> {
-                            List<Comment> updatedComments = Stream.concat(
-                                            combinedInfo.getIssueComments().stream()
-                                                    .map(comment -> (Comment) comment),
-                                            combinedInfo.getPullComments().stream()
-                                                    .map(comment -> (Comment) comment))
-                                    .filter(comment -> (link.getLastUpdateTime() == null
-                                                    || comment.getUpdatedAt()
-                                                            .isAfter(link.getLastUpdateTime()
-                                                                    .atZone(ZoneId.systemDefault())
-                                                                    .toInstant()
-                                                                    .atOffset(ZoneOffset.UTC)))
-                                            && (!filters.containsKey("user")
-                                                    || !filters.get("user")
-                                                            .equals(comment.getUser()
-                                                                    .getName())))
-                                    .collect(Collectors.toList());
-
-                            if (!updatedComments.isEmpty() && link.getLastUpdateTime() != null) {
-                                String updateMessage = buildGitHubUpdateMessage(
-                                        "**PR Update**: ",
-                                        combinedInfo.getPullRequest().getTitle(),
-                                        combinedInfo.getPullRequest().getCreatedAt(),
-                                        updatedComments);
-                                LinkUpdateRequest updateRequest = new LinkUpdateRequest(
-                                        link.getLinkId(),
-                                        link.getUrl(),
-                                        updateMessage,
-                                        "GITHUB_UPDATE",
-                                        chats.stream()
-                                                .map(ChatLinkDTO::getChatId)
-                                                .collect(Collectors.toList()));
-                                notificationService.sendNotification(updateRequest);
-                                return Mono.just(updateLinkWithTimes(
-                                        link,
-                                        LocalDateTime.now(),
-                                        OffsetDateTime.now().toLocalDateTime()));
-                            }
-                            return Mono.just(updateLinkLastCheck(link, LocalDateTime.now()));
+                            Stream<Comment> comments = Stream.concat(
+                                    combinedInfo.getIssueComments().stream().map(comment -> (Comment) comment),
+                                    combinedInfo.getPullComments().stream().map(comment -> (Comment) comment));
+                            return processGitHubComments(
+                                    link,
+                                    comments,
+                                    chats,
+                                    filters,
+                                    "**PR Update**: ",
+                                    "GITHUB_UPDATE",
+                                    combinedInfo.getPullRequest().getTitle(),
+                                    combinedInfo.getPullRequest().getCreatedAt());
                         });
             } else if (link.getUrl().contains("issues")) {
-                // Аналогично для issues
                 String owner = GitHubLinkExtractor.extractOwner(link.getUrl());
                 String repo = GitHubLinkExtractor.extractRepo(link.getUrl());
                 int issueId = GitHubLinkExtractor.extractIssueId(link.getUrl());
 
                 return gitHubService.getIssueInfo(owner, repo, issueId).flatMap(combinedInfo -> {
-                    List<Comment> updatedComments = combinedInfo.getIssueComments().stream()
-                            .map(comment -> (Comment) comment)
-                            .filter(comment -> (link.getLastUpdateTime() == null
-                                            || comment.getUpdatedAt()
-                                                    .isAfter(link.getLastUpdateTime()
-                                                            .atZone(ZoneId.systemDefault())
-                                                            .toInstant()
-                                                            .atOffset(ZoneOffset.UTC)))
-                                    && (!filters.containsKey("user")
-                                            || !filters.get("user")
-                                                    .equals(comment.getUser().getName())))
-                            .collect(Collectors.toList());
-
-                    if (!updatedComments.isEmpty() && link.getLastUpdateTime() != null) {
-                        String updateMessage = buildGitHubUpdateMessage(
-                                "**Issue Update**: ",
-                                combinedInfo.getPullRequest().getTitle(),
-                                combinedInfo.getPullRequest().getCreatedAt(),
-                                updatedComments);
-                        LinkUpdateRequest updateRequest = new LinkUpdateRequest(
-                                link.getLinkId(),
-                                link.getUrl(),
-                                updateMessage,
-                                "GITHUB_ISSUE_UPDATE",
-                                chats.stream().map(ChatLinkDTO::getChatId).collect(Collectors.toList()));
-                        notificationService.sendNotification(updateRequest);
-                        return Mono.just(updateLinkWithTimes(
-                                link, LocalDateTime.now(), OffsetDateTime.now().toLocalDateTime()));
-                    }
-                    return Mono.just(updateLinkLastCheck(link, LocalDateTime.now()));
+                    Stream<Comment> comments =
+                            combinedInfo.getIssueComments().stream().map(comment -> (Comment) comment);
+                    return processGitHubComments(
+                            link,
+                            comments,
+                            chats,
+                            filters,
+                            "**Issue Update**: ",
+                            "GITHUB_ISSUE_UPDATE",
+                            combinedInfo.getPullRequest().getTitle(),
+                            combinedInfo.getPullRequest().getCreatedAt());
                 });
             }
         } else if (link.getUrl().contains("stackoverflow.com")) {
@@ -261,6 +215,40 @@ public class LinkUpdaterScheduler {
                 }
                 return Mono.just(updateLinkLastCheck(link, LocalDateTime.now()));
             });
+        }
+        return Mono.just(updateLinkLastCheck(link, LocalDateTime.now()));
+    }
+
+    private Mono<LinkDTO> processGitHubComments(
+            LinkDTO link,
+            Stream<Comment> comments,
+            List<ChatLinkDTO> chats,
+            Map<String, String> filters,
+            String updateType,
+            String notificationType,
+            String title,
+            OffsetDateTime createdAt) {
+        List<Comment> updatedComments = comments.filter(comment -> (link.getLastUpdateTime() == null
+                                || comment.getUpdatedAt()
+                                        .isAfter(link.getLastUpdateTime()
+                                                .atZone(ZoneId.systemDefault())
+                                                .toInstant()
+                                                .atOffset(ZoneOffset.UTC)))
+                        && (!filters.containsKey("user")
+                                || !filters.get("user").equals(comment.getUser().getName())))
+                .collect(Collectors.toList());
+
+        if (!updatedComments.isEmpty() && link.getLastUpdateTime() != null) {
+            String updateMessage = buildGitHubUpdateMessage(updateType, title, createdAt, updatedComments);
+            LinkUpdateRequest updateRequest = new LinkUpdateRequest(
+                    link.getLinkId(),
+                    link.getUrl(),
+                    updateMessage,
+                    notificationType,
+                    chats.stream().map(ChatLinkDTO::getChatId).collect(Collectors.toList()));
+            notificationService.sendNotification(updateRequest);
+            return Mono.just(updateLinkWithTimes(
+                    link, LocalDateTime.now(), OffsetDateTime.now().toLocalDateTime()));
         }
         return Mono.just(updateLinkLastCheck(link, LocalDateTime.now()));
     }

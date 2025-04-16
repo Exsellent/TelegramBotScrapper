@@ -107,7 +107,7 @@ public class JdbcLinkDao implements LinkDao {
     public boolean existsByUrl(String url) {
         String sql = "SELECT COUNT(*) FROM link WHERE url = ?";
         Integer count = jdbcTemplate.queryForObject(sql, Integer.class, url);
-        return count != null && count > 0;
+        return count > 0;
     }
 
     @Override

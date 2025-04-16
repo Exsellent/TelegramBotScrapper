@@ -7,15 +7,14 @@ import backend.academy.scrapper.repository.repository.ChatLinkRepository;
 import backend.academy.scrapper.repository.repository.ChatRepository;
 import backend.academy.scrapper.service.ChatLinkService;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
-import org.springframework.stereotype.Service;
-
 import java.time.LocalDateTime;
 import java.util.Collection;
 import java.util.Map;
 import java.util.stream.Collectors;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.stereotype.Service;
 
 @Service("jpaChatLinkService")
 @ConditionalOnProperty(name = "app.database-access-type", havingValue = "jpa")
@@ -25,7 +24,8 @@ public class JpaChatLinkService implements ChatLinkService {
     private final ChatRepository chatRepository;
     private final ObjectMapper objectMapper;
 
-    public JpaChatLinkService(ChatLinkRepository chatLinkRepository, ChatRepository chatRepository, ObjectMapper objectMapper) {
+    public JpaChatLinkService(
+            ChatLinkRepository chatLinkRepository, ChatRepository chatRepository, ObjectMapper objectMapper) {
         this.chatLinkRepository = chatLinkRepository;
         this.chatRepository = chatRepository;
         this.objectMapper = objectMapper;
@@ -68,8 +68,8 @@ public class JpaChatLinkService implements ChatLinkService {
     public Collection<ChatLinkDTO> findAllLinksForChat(long chatId) {
         LOGGER.info("Finding all links for chat {}", chatId);
         Collection<ChatLinkDTO> links = chatLinkRepository.findByChatId(chatId).stream()
-            .map(this::mapToDto)
-            .collect(Collectors.toList());
+                .map(this::mapToDto)
+                .collect(Collectors.toList());
         LOGGER.info("Found {} links for chat {}", links.size(), chatId);
         return links;
     }
@@ -78,8 +78,8 @@ public class JpaChatLinkService implements ChatLinkService {
     public Collection<ChatLinkDTO> findAllChatsForLink(long linkId) {
         LOGGER.info("Finding all chats for link {}", linkId);
         Collection<ChatLinkDTO> chats = chatLinkRepository.findByLinkId(linkId).stream()
-            .map(this::mapToDto)
-            .collect(Collectors.toList());
+                .map(this::mapToDto)
+                .collect(Collectors.toList());
         LOGGER.info("Found {} chats for link {}", chats.size(), linkId);
         return chats;
     }
@@ -96,21 +96,24 @@ public class JpaChatLinkService implements ChatLinkService {
     public Map<String, String> getFiltersForLink(long linkId) {
         LOGGER.info("Fetching filters for link {}", linkId);
         return chatLinkRepository.findByLinkId(linkId).stream()
-            .findFirst()
-            .map(chatLink -> {
-                try {
-                    return chatLink.getFilters() != null ? objectMapper.readValue(chatLink.getFilters(), Map.class) : Map.of();
-                } catch (Exception e) {
-                    LOGGER.error("Failed to deserialize filters from JSON", e);
-                    return Map.of();
-                }
-            })
-            .orElse(Map.of());
+                .findFirst()
+                .map(chatLink -> {
+                    try {
+                        return chatLink.getFilters() != null
+                                ? objectMapper.readValue(chatLink.getFilters(), Map.class)
+                                : Map.of();
+                    } catch (Exception e) {
+                        LOGGER.error("Failed to deserialize filters from JSON", e);
+                        return Map.of();
+                    }
+                })
+                .orElse(Map.of());
     }
 
     private ChatLinkDTO mapToDto(ChatLink chatLink) {
         try {
-            Map<String, String> filters = chatLink.getFilters() != null ? objectMapper.readValue(chatLink.getFilters(), Map.class) : null;
+            Map<String, String> filters =
+                    chatLink.getFilters() != null ? objectMapper.readValue(chatLink.getFilters(), Map.class) : null;
             return new ChatLinkDTO(chatLink.getChatId(), chatLink.getLinkId(), filters, chatLink.getSharedAt());
         } catch (Exception e) {
             LOGGER.error("Failed to deserialize filters from JSON", e);

@@ -24,16 +24,19 @@ public class KafkaNotificationService implements NotificationService {
 
     @Autowired
     public KafkaNotificationService(
-        KafkaTemplate<String, String> kafkaTemplate,
-        ObjectMapper objectMapper,
-        @Value("${app.kafka.topics.notifications}") String notificationTopic,
-        @Value("${app.kafka.topics.dlq}") String dlqTopic) {
+            KafkaTemplate<String, String> kafkaTemplate,
+            ObjectMapper objectMapper,
+            @Value("${app.kafka.topics.notifications}") String notificationTopic,
+            @Value("${app.kafka.topics.dlq}") String dlqTopic) {
         this.kafkaTemplate = kafkaTemplate;
         this.objectMapper = objectMapper;
         this.notificationTopic = notificationTopic;
         this.dlqTopic = dlqTopic;
 
-        LOGGER.info("KafkaNotificationService initialized with notificationTopic: {}, dlqTopic: {}", notificationTopic, dlqTopic);
+        LOGGER.info(
+                "KafkaNotificationService initialized with notificationTopic: {}, dlqTopic: {}",
+                notificationTopic,
+                dlqTopic);
     }
 
     @Override
