@@ -28,4 +28,7 @@ public class PullRequestResponse {
 
     @JsonProperty("id")
     private Long id;
+
+    @JsonProperty("user")
+    private User user;
 }

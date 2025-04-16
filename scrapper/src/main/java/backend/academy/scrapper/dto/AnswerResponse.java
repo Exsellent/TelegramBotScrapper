@@ -28,4 +28,10 @@ public class AnswerResponse {
 
     @JsonProperty("question_id")
     private Long questionId;
+
+    @JsonProperty("owner")
+    private User owner;
+
+    @JsonProperty("body")
+    private String body;
 }

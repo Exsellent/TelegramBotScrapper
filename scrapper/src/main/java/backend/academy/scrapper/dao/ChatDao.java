@@ -1,15 +1,14 @@
 package backend.academy.scrapper.dao;
 
 import backend.academy.scrapper.dto.ChatDTO;
-import java.util.List;
+import java.util.Collection;
 
 public interface ChatDao {
-
     void add(ChatDTO chat);
 
-    void remove(Long chatId);
+    void remove(long chatId);
 
-    List<ChatDTO> findAll();
+    Collection<ChatDTO> findAll();
 
-    boolean existsById(Long chatId);
+    boolean existsById(long chatId);
 }

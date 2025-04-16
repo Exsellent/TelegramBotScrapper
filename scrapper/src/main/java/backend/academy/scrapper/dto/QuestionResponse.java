@@ -27,4 +27,10 @@ public class QuestionResponse {
 
     @JsonProperty("creation_date")
     private OffsetDateTime creationDate;
+
+    @JsonProperty("owner")
+    private User owner;
+
+    @JsonProperty("body")
+    private String body;
 }

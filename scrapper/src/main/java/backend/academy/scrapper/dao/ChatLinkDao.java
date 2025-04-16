@@ -1,14 +1,18 @@
 package backend.academy.scrapper.dao;
 
-import backend.academy.scrapper.dto.ChatLinkDTO;
-import java.util.List;
+import backend.academy.scrapper.domain.ChatLink;
+import java.util.Collection;
 
 public interface ChatLinkDao {
-    void add(ChatLinkDTO chatLink);
+    void add(ChatLink chatLink);
 
-    void remove(Long chatId, Long linkId);
+    void removeByChatIdAndLinkId(long chatId, long linkId);
 
-    List<ChatLinkDTO> findAll();
+    Collection<ChatLink> findByChatId(long chatId);
 
-    List<ChatLinkDTO> getChatsForLink(Long linkId);
+    Collection<ChatLink> findByLinkId(long linkId);
+
+    boolean existsByLinkId(long linkId);
+
+    Collection<ChatLink> findAll();
 }

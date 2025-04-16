@@ -2,24 +2,28 @@ package backend.academy.scrapper.dao;
 
 import backend.academy.scrapper.dto.LinkDTO;
 import java.time.LocalDateTime;
-import java.util.List;
+import java.util.Collection;
 
 public interface LinkDao {
     Long add(LinkDTO link);
 
-    void remove(Long linkId);
-
     void remove(String url);
 
-    List<LinkDTO> findAll();
+    Collection<LinkDTO> findAll();
 
     void update(LinkDTO link);
 
-    List<LinkDTO> findLinksNotCheckedSince(LocalDateTime dateTime);
+    LinkDTO findById(Long linkId);
+
+    LinkDTO findByUrl(String url);
+
+    Collection<LinkDTO> findLinksNotCheckedSince(LocalDateTime sinceTime, int offset, int limit);
 
     boolean existsByUrl(String url);
 
-    LinkDTO findById(Long linkId);
+    void addTagToLink(Long linkId, String tagName);
 
-    LinkDTO findByUrl(String linkUrl);
+    void removeTagFromLink(Long linkId, String tagName);
+
+    Collection<LinkDTO> findLinksByTag(String tagName);
 }

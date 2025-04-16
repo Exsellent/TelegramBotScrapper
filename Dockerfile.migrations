@@ -1,0 +1,10 @@
+FROM liquibase/liquibase:4.29
+
+# Переключаемся на пользователя root для установки пакетов
+USER root
+
+# Устанавливаем wait-for-it
+RUN apt-get update && apt-get install -y wait-for-it
+
+# (Опционально) Возвращаемся к пользователю liquibase для безопасности
+USER liquibase

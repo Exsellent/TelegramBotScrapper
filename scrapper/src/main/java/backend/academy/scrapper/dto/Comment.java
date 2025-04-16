@@ -9,4 +9,6 @@ public interface Comment {
     OffsetDateTime getCreatedAt();
 
     OffsetDateTime getUpdatedAt();
+
+    User getUser();
 }

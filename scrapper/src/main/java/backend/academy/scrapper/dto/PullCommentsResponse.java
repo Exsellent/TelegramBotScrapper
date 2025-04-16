@@ -18,9 +18,10 @@ import lombok.ToString;
 public class PullCommentsResponse implements Comment {
     private String url;
     private Long id;
+    private String body;
 
-    @JsonProperty("diff_hunk")
-    private String diffHunk;
+    @JsonProperty("user")
+    private User user;
 
     @JsonProperty("created_at")
     private OffsetDateTime createdAt;
@@ -28,10 +29,13 @@ public class PullCommentsResponse implements Comment {
     @JsonProperty("updated_at")
     private OffsetDateTime updatedAt;
 
-    private String body;
-
     @Override
     public String getCommentDescription() {
-        return diffHunk + "\n\n" + body;
+        return body;
+    }
+
+    @Override
+    public User getUser() {
+        return user;
     }
 }

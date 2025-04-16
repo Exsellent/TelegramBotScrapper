@@ -9,6 +9,7 @@ import backend.academy.scrapper.dto.ListLinksResponse;
 import backend.academy.scrapper.dto.RemoveLinkRequest;
 import backend.academy.scrapper.service.ChatLinkService;
 import backend.academy.scrapper.service.ChatService;
+import backend.academy.scrapper.service.LinkManagementService;
 import backend.academy.scrapper.service.LinkService;
 import jakarta.validation.Valid;
 import java.util.Collection;
@@ -34,6 +35,7 @@ public class ScrapperApiController {
     private final ChatService chatService;
     private final LinkService linkService;
     private final ChatLinkService chatLinkService;
+    private final LinkManagementService linkManagementService;
     private final WebClient gitHubWebClient;
 
     @PostMapping("/tg-chat/{id}")
@@ -75,18 +77,15 @@ public class ScrapperApiController {
     @DeleteMapping("/links")
     public ResponseEntity<LinkResponse> removeLink(
             @RequestHeader("Tg-Chat-Id") Long tgChatId, @RequestBody @Valid RemoveLinkRequest removeLinkRequest) {
-        LinkDTO link = linkService.findByUrl(removeLinkRequest.getLink());
-        chatLinkService.removeLinkFromChat(tgChatId, link.getLinkId());
-        if (!chatLinkService.existsChatsForLink(link.getLinkId())) {
-            linkService.remove(removeLinkRequest.getLink());
-        }
-        return ResponseEntity.ok(new LinkResponse(link.getLinkId(), link.getUrl(), link.getDescription()));
+        LinkResponse response =
+                linkManagementService.removeLinkFromChatAndCleanup(tgChatId, removeLinkRequest.getLink());
+        return ResponseEntity.ok(response);
     }
 
     @GetMapping("/updates")
     public ResponseEntity<List<LinkUpdateRequest>> getUpdates() {
         try {
-            List<LinkUpdateRequest> updates = List.of(); // Пустой список, так как логика не реализована
+            List<LinkUpdateRequest> updates = List.of();
             return ResponseEntity.ok(updates);
         } catch (Exception e) {
             return ResponseEntity.internalServerError().build();

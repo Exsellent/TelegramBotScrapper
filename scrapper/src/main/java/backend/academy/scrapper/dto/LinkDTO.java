@@ -1,17 +1,14 @@
 package backend.academy.scrapper.dto;
 
 import java.time.LocalDateTime;
-import lombok.AllArgsConstructor;
+import java.util.List;
+import lombok.Builder;
 import lombok.Getter;
-import lombok.NoArgsConstructor;
 import lombok.Setter;
-import lombok.ToString;
 
 @Getter
 @Setter
-@ToString
-@NoArgsConstructor
-@AllArgsConstructor
+@Builder
 public class LinkDTO {
     private Long linkId;
     private String url;
@@ -19,4 +16,17 @@ public class LinkDTO {
     private LocalDateTime createdAt;
     private LocalDateTime lastCheckTime;
     private LocalDateTime lastUpdateTime;
+    private List<String> tags;
+
+    @Override
+    public String toString() {
+        return "LinkDTO(" + "linkId="
+                + linkId + ", url="
+                + url + ", description="
+                + description + ", createdAt="
+                + createdAt + ", lastCheckTime="
+                + lastCheckTime + ", lastUpdateTime="
+                + lastUpdateTime + ", tags="
+                + tags + ')';
+    }
 }

@@ -4,6 +4,7 @@ import backend.academy.scrapper.client.stackoverflow.StackOverflowClient;
 import backend.academy.scrapper.dto.AnswerResponse;
 import backend.academy.scrapper.dto.CombinedStackOverflowInfo;
 import backend.academy.scrapper.dto.QuestionResponse;
+import java.time.OffsetDateTime;
 import java.util.Collections;
 import java.util.List;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -51,7 +52,33 @@ public class StackOverflowService {
         return stackOverflowClient.fetchAnswersInfo(questionIds);
     }
 
+    /**
+     * Получает комбинированную информацию о вопросе и его ответах.
+     *
+     * @param questionId идентификатор вопроса
+     * @return Mono с комбинированной информацией
+     */
     public Mono<CombinedStackOverflowInfo> getCombinedInfo(String questionId) {
-        return Mono.zip(getQuestionInfo(questionId), getAnswersForQuestion(questionId), CombinedStackOverflowInfo::new);
+        Mono<QuestionResponse> questionMono = getQuestionInfo(questionId);
+        Mono<List<AnswerResponse>> answersMono = getAnswersForQuestion(questionId);
+
+        return Mono.zip(questionMono, answersMono).map(tuple -> {
+            QuestionResponse question = tuple.getT1();
+            List<AnswerResponse> answers = tuple.getT2();
+            OffsetDateTime latestUpdate = answers.stream()
+                    .map(AnswerResponse::getLastActivityDate)
+                    .max(OffsetDateTime::compareTo)
+                    .orElse(question.getLastActivityDate());
+            return new CombinedStackOverflowInfo(question, answers, latestUpdate);
+        });
+    }
+
+    /**
+     * Возвращает клиент StackOverflow для очистки кэша.
+     *
+     * @return StackOverflowClient
+     */
+    public StackOverflowClient getStackOverflowClient() {
+        return stackOverflowClient;
     }
 }

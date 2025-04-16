@@ -1,52 +1,89 @@
 ![Build](https://github.com/central-university-dev/backend-academy-2025-spring-template/actions/workflows/build.yaml/badge.svg)
 
+---
+
 # Link Tracker
 
-Проект сделан в рамках курса Академия Бэкенда.
+Проект разработан в рамках курса "Академия Бэкенда". Это приложение для отслеживания обновлений контента по ссылкам с
+уведомлениями в Telegram. Во второй части задания добавлена полноценная работа с базой данных PostgreSQL, реализованы
+два провайдера доступа к данным (SQL и ORM), а также поддержка тегирования ссылок для группировки подписок.
 
-Приложение для отслеживания обновлений контента по ссылкам.
-При появлении новых событий отправляется уведомление в Telegram.
+Проект написан на `Java 23` с использованием `Spring Boot 3` и состоит из тредх приложений:
+- **Bot**: Telegram-бот для взаимодействия с пользователем.
+- **Scrapper**: Сервис для обработки ссылок и отправки уведомлений.
+- **Report**: Приложение для отправки уведомлений в Telegram.
 
-Проект написан на `Java 23` с использованием `Spring Boot 3`.
+Для работы требуется PostgreSQL, миграции базы данных выполняются через Liquibase. Опционально поддерживается Kafka (будет
+реализована в следующем задании).
 
-Проект состоит из 2-х приложений:
-* Bot
-* Scrapper
-
-Для работы требуется БД `PostgreSQL`. Присутствует опциональная зависимость на `Kafka`.
-
-Этот проект представляет собой Telegram-бот, который позволяет пользователям отслеживать ссылки на
-GitHub и StackOverflow. Бот предоставляет базовые функции для регистрации пользователей, управления
-отслеживаемыми ссылками и уведомления о простых обновлениях. Он взаимодействует с сервисом скреппера
-через HTTP по заданному OpenAPI-контракту и включает планировщик для проверки изменений по ссылкам.
+---
 
 ## Описание
 
-В рамках данного проекта реализован минимально жизнеспособный продукт (MVP) Telegram-бота.
-Основное внимание уделено сетевой части, логике обработки команд и базовому планировщику задач.
-Бот поддерживает диалоговый режим для команды `/track` с использованием машины состояний, а также
-базовую обработку ошибок и уведомлений.
+Link Tracker — это Telegram-бот, который позволяет пользователям отслеживать обновления по ссылкам на GitHub и StackOverflow,
+получать уведомления о новых событиях (ответах, комментариях, pull requests, issues) и группировать ссылки с помощью тегов.
+Scrapper-сервис периодически проверяет изменения и отправляет детализированные уведомления через Bot API.
+
+Реализована схема базы данных, добавлены два способа работы с данными (JDBC и JPA), а также
+тегирование ссылок для категоризации (например, "Работа" или "Хобби").
+Приложение теперь работает "по-настоящему", с использованием PostgreSQL вместо хранения в памяти.
+
+---
 
 ## Функциональные возможности
 
-- **Команды бота:**
-  - `/start` — регистрация пользователя в системе.
-  - `/help` — вывод списка доступных команд с описанием.
-  - `/track` — начало отслеживания ссылки (реализовано в формате диалога).
-  - `/untrack` — прекращение отслеживания указанной ссылки.
-  - `/list` — отображение списка отслеживаемых ссылок; если список пуст, выводится специальное
-    сообщение.
-- **Обработка неизвестных команд:** Бот уведомляет пользователя, если команда не распознана.
-- **Планировщик:** Периодически проверяет обновления по отслеживаемым ссылкам и отправляет простое
-  уведомление (заглушку)
-  при обнаружении изменений.
-- **Сетевые вызовы:** Взаимодействие с сервисом скреппера через HTTP в соответствии с OpenAPI-контрактом.
+### Команды бота
+
+- `/start` — Регистрация пользователя.
+- `/help` — Вывод списка команд с описанием.
+- `/track` — Добавление ссылки для отслеживания (диалоговый режим с поддержкой тегов).
+- `/untrack` — Удаление ссылки из отслеживания.
+- `/list` — Отображение списка отслеживаемых ссылок с тегами.
+
+### Тегирование ссылок
+
+- Пользователи могут добавлять теги к ссылкам (например, "Работа", "Хобби") для группировки подписок.
+- Теги задаются в диалоге `/track` после ввода URL (опционально, можно пропустить с помощью "skip").
+- Поддерживаются операции:
+  - Добавление тега к ссылке.
+  - Удаление тега из ссылки.
+  - Поиск ссылок по тегу (доступно через сервисный слой).
+
+### Уведомления об обновлениях
+
+Scrapper отправляет детализированные сообщения при обнаружении изменений:
+- **Для StackOverflow (новый ответ или комментарий)**:
+- Текст темы вопроса.
+- Имя пользователя.
+- Время создания.
+- Превью ответа или комментария (первые 200 символов).
+- **Для GitHub (новый PR или Issue)**:
+- Название PR или Issue.
+- Имя пользователя.
+- Время создания.
+- Превью описания (первые 200 символов).
+
+---
+
+## Нефункциональные требования
+
+- Данные из базы не загружаются в память целиком — используется пагинация (пакеты по 50–500 записей,
+  настраивается в конфигурации).
+- Логика проверки ссылок (планировщик) и отправки уведомлений разделены между сервисами.
+- Интерфейс `LinkService` имеет две реализации: `JdbcLinkService` (SQL) и `JpaLinkService` (ORM). Выбор
+  способа работы задаётся через свойство `app.database-access-type` (`jdbc` или `jpa`).
+- База данных PostgreSQL запускается через Docker Compose для разработки и Testcontainers для тестов.
+- Миграции базы данных реализованы через Liquibase, схема находится в корне проекта в директории `/migrations/`.
+- Тесты проверяют вставку, удаление, обновление данных и корректность уведомлений.
+
+---
 
 ## Установка
 
-1. Убедитесь, что у вас установлены:
+1. Убедитесь, что установлены:
    - Java 23 или выше.
    - Maven 3.8.8 или выше.
+   - Docker (для запуска PostgreSQL и миграций).
 2. Склонируйте репозиторий:
 
    ```shell
@@ -57,388 +94,217 @@ GitHub и StackOverflow. Бот предоставляет базовые фун
    ```shell
    cd <project-directory>
    ```
-4. Соберите проект:
 
-   ```shell
-   mvn clean install
-   ```
-5. Запустите бота:
-
-   ```shell
-   mvn spring-boot:run
-   ```
+---
 
 ## Конфигурация
 
-Бот требует настройки через файл конфигурации `application.yml`, который должен находиться в директории `src/main/resources`.
-Пример содержимого:
+### Настройка окружения
+
+Создайте файл `.env` в корне проекта со следующими переменными:
+
+```
+POSTGRES_DB=scrapper
+POSTGRES_USER=postgres
+POSTGRES_PASSWORD=your_secure_password
+BOT_API_BASEURL=http://localhost:8080
+GITHUB_TOKEN=your_github_token
+STACKOVERFLOW_KEY=your_stackoverflow_key
+STACKOVERFLOW_ACCESS_TOKEN=your_stackoverflow_access_token
+```
+
+### Файл конфигурации
+
+Настройки задаются в `scrapper/src/main/resources/application.yaml`:
 
 ```yaml
 app:
   telegram-token: YOUR_TELEGRAM_TOKEN
+  database-access-type: jdbc  # или jpa
+  check-interval-minutes: 60
 
 scrapper:
   api:
     base-url: http://localhost:8080/api
 ```
 
-- Замените `YOUR_TELEGRAM_TOKEN` на токен вашего Telegram-бота, полученный от BotFather.
-- Убедитесь, что `base-url` соответствует адресу сервиса скреппера.
+- `telegram-token`: Токен Telegram-бота от BotFather.
+- `database-access-type`: Выбор провайдера (`jdbc` для SQL, `jpa` для ORM).
+- `check-interval-minutes`: Интервал проверки обновлений.
 
-Дополнительные параметры, такие как уровень логирования или настройки планировщика, также можно указать в этом файле.
+---
+
+## Запуск приложения
+
+### Запуск PostgreSQL и миграций
+
+1. Соберите образ Liquibase для миграций:
+
+   ```shell
+   docker build -f Dockerfile.migrations -t custom-liquibase:4.29 .
+   ```
+2. Запустите PostgreSQL через Docker Compose:
+
+   ```shell
+   docker-compose up -d postgresql
+   ```
+3. Примените миграции:
+
+   ```shell
+   docker-compose up migrations
+   ```
+4. Проверьте создание таблиц:
+
+   ```shell
+   docker exec -it <postgresql-container-name> psql -U postgres -d scrapper -c "\dt"
+   ```
+
+   Ожидаемый вывод: таблицы `link`, `tags`, `link_tags`, `chat`, `chat_link`.
+
+### Запуск Scrapper
+
+1. Перейдите в директорию `scrapper`:
+
+   ```shell
+   cd scrapper
+   ```
+2. Запустите сервис:
+
+   ```shell
+   mvn spring-boot:run
+   ```
+
+   Дождитесь сообщения "Started ScrapperApplication".
+
+### Запуск бота
+
+1. Перейдите в директорию `bot`:
+
+   ```shell
+   cd ../bot
+   ```
+2. Запустите бота:
+
+   ```shell
+   mvn spring-boot:run
+   ```
+
+---
 
 ## Использование
 
-1. Запустите приложение, как указано в разделе "Установка".
-2. Найдите вашего бота в Telegram и начните взаимодействие с помощью команд:
-   - **`/start`** — Регистрация пользователя.  
-     Ответ бота: "Welcome!" (или уведомление, если чат уже зарегистрирован).
-   - **`/help`** — Вывод списка команд.  
-     Пример ответа:
+1. Найдите бота в Telegram и начните с команды `/start`.
+2. Пример работы с тегами:
 
-     ```
-     Available Commands:
-     /start: Register
-     /track: Start tracking the link
-     /untrack: Stop tracking the link
-     /list: Show a list of tracked links
+   ```
+   > /track
+   < Please enter the URL you want to track:
+   > https://github.com/example/repo
+   < Enter tags for this link (optional, space-separated) or type 'skip':
+   > work hobby
+   < Link successfully added with tags: work, hobby
+   ```
+3. Уведомления об обновлениях приходят автоматически, например:
 
-     Supported link formats:
-     GitHub: https://github.com/example/repo
-     StackOverflow: https://stackoverflow.com/questions/example
-     ```
-   - **`/track`** — Начало отслеживания ссылки в диалоговом формате:  
-     Пример:
+   ```
+   Detected changes in https://github.com/example/repo:
+   **PR Update**: Fix bug #123
+   **Created**: 2025-03-25 12:00:00
+   Comment by john_doe at 2025-03-25 12:05:00:
+   Looks good, approved!
+   ```
 
-     ```
-     > /track
-     < Please enter the URL you want to track:
-     > https://github.com/example/repo
-     < Enter tags for this link (optional, space-separated) or type 'skip':
-     > work hobby
-     < Enter filters (format: key:value, e.g., 'user:john type:comment') or type 'skip':
-     > user:john type:comment
-     < Link successfully added with specified tags and filters!
-     ```
-   - **`/untrack <URL>`** — Прекращение отслеживания ссылки.  
-     Пример:
-
-     ```
-     > /untrack https://github.com/example/repo
-     < Link removed from tracking: https://github.com/example/repo
-     ```
-   - **`/list`** — Показать список отслеживаемых ссылок.  
-     Пример:
-
-     ```
-     Tracked links:
-     https://github.com/example/repo
-     ```
-
-     Или, если список пуст:
-
-     ```
-     The list of tracked links is empty.
-     ```
-
-## Диалоговый режим
-
-Команда `/track` реализована с использованием машины состояний для пошагового ввода данных:
-1. **Состояние AWAITING_URL**: Ожидание ввода URL.
-2. **Состояние AWAITING_TAGS**: Ожидание ввода тегов (опционально, можно пропустить с помощью "skip").
-3. **Состояние AWAITING_FILTERS**: Ожидание ввода фильтров (опционально, можно пропустить с помощью "skip").
-
-После успешного завершения диалога данные сохраняются, и пользователь получает подтверждение.
-
-## Регистрация команд в меню
-
-При запуске бот автоматически регистрирует команды через метод Telegram API `setMyCommands`.
-Это делает команды видимыми в меню бота в Telegram. Регистрация выполняется классом `BotMenuInitializer`.
-
-## Планировщик
-
-Планировщик (`UpdateScheduler`) запускается каждые 60 секунд (настраивается через аннотацию `@Scheduled`) и проверяет
-обновления по отслеживаемым ссылкам через вызов API скреппера. При обнаружении изменений отправляется простое уведомление,
-например:
-
-```
-Detected changes in https://github.com/example/repo:
-Update detected
-```
+---
 
 ## Тестирование
 
-Проект включает юнит-тесты для проверки ключевых компонентов. Для их запуска выполните:
+Тесты используют Testcontainers для запуска PostgreSQL. Запустите их командой:
 
 ```shell
 mvn test
 ```
 
-Тесты охватывают:
-- Корректность парсинга ссылок.
-- Сохранение данных (ссылки, теги, фильтры) в репозитории.
-- Обработку неизвестных команд.
-- Добавление и удаление ссылок (happy path).
-- Обработку дубликатов ссылок.
-- Корректность работы планировщика.
-- Обработку ошибок HTTP-запросов.
+Проверяется:
+- Вставка, удаление, обновление данных в базе.
+- Переключение между `jdbc` и `jpa` через конфигурацию.
+- Формат уведомлений для StackOverflow и GitHub (превью 200 символов).
 
-В тестах используются заглушки (mocks) для внешних API (GitHub, StackOverflow), чтобы избежать реальных вызовов.
-
-## Логирование
-
-Бот использует структурное логирование через Log4j2 (конфигурация в `log4j2-plain.xml`). Логи включают ключ-значения
-для удобства анализа. Уровень логирования можно настроить в `application.yml`, например:
-
-```yaml
-logging:
-  level:
-    backend.academy.bot: DEBUG
-```
-
-## API Контракт
-
-Бот взаимодействует с сервисом скреппера согласно OpenAPI-контракту, доступному по адресу:  
-[https://gist.github.com/sanyarnd/e35dc3d4e0c8000205ec5029dac38f5a]
-(https://gist.github.com/sanyarnd/e35dc3d4e0c8000205ec5029dac38f5a)
+---
 
 ## Структура проекта
 
+### Scrapper
+
 ```
+scrapper/
+├── migrations/                    # Схема БД и миграции Liquibase
+│   ├── db.changelog-master.yaml
+│   └── changes/
+│       ├── 001_create_tables.sql
+│       └── ...
+├── src/
+│   ├── main/
+│   │   ├── java/backend/academy/scrapper/
+│   │   │   ├── client/            # Клиенты API (GitHub, StackOverflow, Bot)
+│   │   │   ├── configuration/     # Конфигурации (JDBC, JPA, Scheduler)
+│   │   │   ├── controller/        # REST API (ScrapperApiController)
+│   │   │   ├── dao/              # Интерфейсы доступа к данным
+│   │   │   ├── database/         # Реализации хранения
+│   │   │   │   ├── jdbc/service/ # JDBC-сервисы (JdbcLinkService и др.)
+│   │   │   │   ├── jpa/service/  # JPA-сервисы (JpaLinkService и др.)
+│   │   │   │   └── scheduler/    # Планировщик (LinkUpdaterScheduler)
+│   │   │   ├── domain/           # Сущности (Link, Tag, Chat)
+│   │   │   ├── dto/             # DTO для передачи данных
+│   │   │   ├── repository/       # JPA-репозитории (TagRepository и др.)
+│   │   │   ├── service/          # Интерфейсы сервисов
+│   │   │   └── utils/            # Утилиты (LinkExtractor)
+│   │   └── resources/
+│   │       ├── application.yaml  # Конфигурация
+│   └── test/                     # Тесты с Testcontainers
+```
+
+### Bot
+
+```
+bot/
 ├── src/
 │   ├── main/
 │   │   ├── java/backend/academy/bot/
-│   │   │   ├── backoff/            # Стратегии повторов (backoff)
-│   │   │   ├── app/                # Точка входа (BotApplication)
-│   │   │   ├── command/            # Обработчики команд и машина состояний
-│   │   │   ├── client/             # Клиент для взаимодействия со скреппером
-│   │   │   ├── config/             # Конфигурация приложения
-│   │   │   ├── insidebot/          # Логика Telegram-бота
-│   │   │   ├── monitoring/         # Метрики
-│   │   │   ├── service/            # Сервисная логика
-│   │   │   └── utils/              # Утилиты (LinkParser)
+│   │   │   ├── command/          # Обработчики команд и машина состояний
+│   │   │   ├── client/           # Клиент для Scrapper API
+│   │   │   ├── service/          # Логика бота
+│   │   │   └── utils/            # Утилиты (LinkParser)
 │   │   └── resources/
-│   │       ├── application.yml     # Конфигурация
-│   │       └── log4j2-plain.xml    # Настройки логирования
-│   └── test/                       # Тесты
+│   │       ├── application.yml   # Конфигурация
+│   └── test/                     # Тесты
 ```
+
+---
 
 ## Дополнительные заметки
 
-- **Типобезопасность конфигурации:** Используется `application.yml` для безопасного хранения настроек.
-- **HTTP-клиенты:** Реализованы вручную для GitHub и StackOverflow без использования SDK.
-- **Повторы (Retry):** Используется механизм повторов с фиксированной задержкой для обработки ошибок API.
+- **База данных**: Данные хранятся в PostgreSQL с таблицами `link`, `tags`, `link_tags`, `chat`, `chat_link`.
+  Индексы настроены на поля в `WHERE`-условиях.
+- **Миграции**: Liquibase применяет SQL-скрипты из `migrations/`.
+- **Пагинация**: Данные загружаются пакетами (настраивается в `application.yaml`).
+- **Интерфейсы**: `LinkService`, `ChatService` и др. не содержат специфичных для JDBC/JPA типов.
 
 ---
 
-## Scrapper Service для Link Tracker Bot
+## Отладка
 
-### Описание сервиса
-
-Сервис скреппера является частью системы отслеживания ссылок, работающей в связке с Telegram-ботом. Он отвечает
-за взаимодействие с внешними API (GitHub и StackOverflow), управление данными о чатах и ссылках, а также за периодическую
-проверку обновлений и отправку уведомлений через Bot API. Сервис реализован с использованием Spring Boot и предоставляет
-REST API для управления данными, что позволяет боту эффективно взаимодействовать с ним.
-
-Основные задачи сервиса:
-- Получение данных о вопросах и ответах с StackOverflow.
-- Получение данных о pull request'ах и комментариях с GitHub.
-- Хранение информации о чатах и отслеживаемых ссылках.
-- Периодическая проверка обновлений по ссылкам и уведомление пользователей через Telegram-бот.
+- Swagger UI: `http://localhost:8080/swagger-ui`
+- Actuator: `curl http://localhost:8080/api/actuator/health`
 
 ---
 
-## Структура проекта
+## Остановка
 
-Проект организован в модульной структуре для обеспечения читаемости и поддерживаемости кода.
+Остановите контейнеры:
 
-```
-├── src/
-│   ├── main/
-│   │   ├── java/
-│   │   │   └── backend/
-│   │   │       └── academy/
-│   │   │           └── scrapper/
-│   │   │               ├── client/                # Клиенты для взаимодействия с внешними API
-│   │   │               │   ├── BotApiClient.java  # Клиент для отправки обновлений в Bot API
-│   │   │               │   ├── github/            # Клиенты для GitHub API
-│   │   │               │   │   ├── GitHubClient.java
-│   │   │               │   │   └── GitHubClientImpl.java
-│   │   │               │   └── stackoverflow/     # Клиенты для StackOverflow API
-│   │   │               │       ├── StackOverflowClient.java
-│   │   │               │       └── StackOverflowClientImpl.java
-│   │   │               ├── configuration/         # Конфигурационные классы
-│   │   │               │   ├── AccessType.java
-│   │   │               │   ├── ApplicationConfig.java
-│   │   │               │   ├── ClientConfig.java
-│   │   │               │   ├── JdbcAccessConfiguration.java
-│   │   │               │   ├── JpaAccessConfiguration.java
-│   │   │               │   ├── RateLimitingProperties.java
-│   │   │               │   ├── RetryConfig.java
-│   │   │               │   └── SchedulerConfig.java
-│   │   │               ├── controller/            # REST API контроллеры
-│   │   │               │   └── ScrapperApiController.java
-│   │   │               ├── dao/                   # Интерфейсы доступа к данным
-│   │   │               │   ├── ChatDao.java
-│   │   │               │   ├── ChatLinkDao.java
-│   │   │               │   └── LinkDao.java
-│   │   │               ├── database/              # Реализации хранения данных
-│   │   │               │   └── jdbc/
-│   │   │               │       ├── dao/
-│   │   │               │       │   ├── InMemoryChatDao.java
-│   │   │               │       │   ├── InMemoryChatLinkDao.java
-│   │   │               │       │   ├── InMemoryLinkDao.java
-│   │   │               │       │   ├── JdbcChatDao.java
-│   │   │               │       │   ├── JdbcChatLinkDao.java
-│   │   │               │       │   └── JdbcLinkDao.java
-│   │   │               │       └── service/
-│   │   │               │           ├── JdbcChatLinkService.java
-│   │   │               │           ├── JdbcChatService.java
-│   │   │               │           └── JdbcLinkService.java
-│   │   │               ├── domain/                # Доменные модели
-│   │   │               │   ├── Chat.java
-│   │   │               │   ├── ChatLink.java
-│   │   │               │   ├── ChatLinkId.java
-│   │   │               │   └── Link.java
-│   │   │               ├── dto/                   # Объекты передачи данных (DTO)
-│   │   │               │   ├── AddLinkRequest.java
-│   │   │               │   ├── AnswerResponse.java
-│   │   │               │   ├── AnswersApiResponse.java
-│   │   │               │   ├── CombinedPullRequestInfo.java
-│   │   │               │   ├── CombinedStackOverflowInfo.java
-│   │   │               │   ├── LinkUpdateRequest.java
-│   │   │               │   ├── PullRequestResponse.java
-│   │   │               │   ├── QuestionResponse.java
-│   │   │               │   └── QuestionsApiResponse.java
-│   │   │               ├── exception/             # Обработка исключений
-│   │   │               │   ├── ChatAlreadyRegisteredException.java
-│   │   │               │   ├── ChatNotFoundException.java
-│   │   │               │   ├── GlobalExceptionHandler.java
-│   │   │               │   ├── LinkAlreadyAddedException.java
-│   │   │               │   └── LinkNotFoundException.java
-│   │   │               ├── filter/                # Фильтры запросов
-│   │   │               │   └── RateLimitingFilter.java
-│   │   │               ├── repository/            # Репозитории для работы с данными
-│   │   │               │   ├── ChatLinkRepository.java
-│   │   │               │   ├── ChatRepository.java
-│   │   │               │   ├── InMemoryChatRepository.java
-│   │   │               │   ├── InMemoryChatRepositoryImpl.java
-│   │   │               │   ├── InMemoryLinkRepositoryImpl.java
-│   │   │               │   └── LinkRepository.java
-│   │   │               ├── scheduler/             # Планировщик обновлений
-│   │   │               │   └── LinkUpdaterScheduler.java
-│   │   │               ├── service/               # Бизнес-логика
-│   │   │               │   ├── ChatLinkService.java
-│   │   │               │   ├── ChatService.java
-│   │   │               │   ├── GitHubService.java
-│   │   │               │   ├── LinkService.java
-│   │   │               │   └── StackOverflowService.java
-│   │   │               └── utils/                 # Утилиты
-│   │   │                   ├── GitHubLinkExtractor.java
-│   │   │                   └── StackOverflowLinkExtractor.java
-│   │   └── resources/
-│   │       ├── application.yaml                   # Основной файл конфигурации
-│   │       └── log4j2-plain.xml                  # Настройки логирования
+```shell
+docker-compose down
 ```
 
 ---
-
-## Ключевые компоненты
-
-### Клиенты API
-
-- **`BotApiClient`**: Отправляет уведомления об обновлениях ссылок через Bot API с использованием `WebClient`. Использует реактивный подход для асинхронной обработки запросов.
-- **`GitHubClientImpl`**: Реализует взаимодействие с GitHub API. Получает данные о pull request'ах, комментариях к issues и pull request'ам. Поддерживает механизм повторов (Retry) для обработки временных сбоев.
-- **`StackOverflowClientImpl`**: Реализует взаимодействие с StackOverflow API. Получает информацию о вопросах и ответах по заданным идентификаторам. Также поддерживает Retry.
-
-### Сервисы
-
-- **`GitHubService`**: Обрабатывает запросы к GitHub API через `GitHubClient`. Предоставляет методы для регистрации/удаления чатов и получения информации о pull request'ах.
-- **`StackOverflowService`**: Обрабатывает запросы к StackOverflow API через `StackOverflowClient`. Поддерживает получение данных о вопросах и ответах, а также комбинированной информации.
-- **`LinkService`**, **`ChatService`**, **`ChatLinkService`**: Управляют данными о ссылках, чатах и их связях. Поддерживают различные механизмы хранения (in-memory, JDBC, JPA).
-
-### Планировщик
-
-- **`LinkUpdaterScheduler`**: Периодически проверяет отслеживаемые ссылки на обновления. Использует заданный интервал (`scheduler.interval`) из конфигурации. При обнаружении изменений отправляет уведомления через `BotApiClient`.
-
-### Фильтр ограничения скорости
-
-- **`RateLimitingFilter`**: Ограничивает количество запросов с одного IP-адреса, предотвращая перегрузку сервиса. При превышении лимита возвращает ошибку `429 Too Many Requests`.
-
-### Хранение данных
-
-- **`InMemoryChatRepositoryImpl`**, **`InMemoryLinkRepositoryImpl`**: Реализации репозиториев для хранения данных в памяти с использованием `ConcurrentHashMap`.
-- Поддержка других механизмов хранения (JDBC, JPA) реализована через соответствующие DAO и сервисы в пакете `database`.
-
-### Утилиты
-
-- **`GitHubLinkExtractor`**, **`StackOverflowLinkExtractor`**: Извлекают идентификаторы и метаданные из ссылок GitHub и StackOverflow для упрощения обработки.
-
----
-
-## Принципы работы
-
-1. **Получение данных**: Клиенты `GitHubClientImpl` и `StackOverflowClientImpl` используют `WebClient` для асинхронных запросов к внешним API. Ответы преобразуются в DTO (например, `PullRequestResponse`, `QuestionResponse`).
-2. **Обработка обновлений**: `LinkUpdaterScheduler` запускается по расписанию, проверяет устаревшие ссылки и вызывает соответствующие сервисы для получения актуальной информации. При обнаружении изменений формируется уведомление и отправляется через `BotApiClient`.
-3. **Хранение**: Данные о чатах и ссылках хранятся в зависимости от конфигурации (`IN_MEMORY`, `JDBC`, `JPA`), что обеспечивает гибкость в развертывании.
-4. **Ограничение нагрузки**: `RateLimitingFilter` защищает сервис от чрезмерного количества запросов.
-
----
-
-## Зависимости
-
-- **Spring Boot**: Основа проекта, предоставляет REST API, планировщик и конфигурацию.
-- **WebFlux/WebClient**: Для реактивного взаимодействия с внешними API.
-- **Log4j2**: Для логирования событий.
-- **Jackson**: Для сериализации/десериализации JSON.
-
----
-
-## Инструкция по запуску приложения
-
-```markdown
-### Запуск приложения
-
-Для запуска приложения выполните следующие шаги из корневой директории проекта, где находятся
-поддиректории `scrapper` и `bot`. Убедитесь, что у вас установлены Java 23 и Maven 3.8.8 или выше.
-
-1. **Остановка предыдущих процессов:**
-   - Если у вас уже запущены Java-процессы (например, от предыдущих запусков приложения),
-     остановите их, чтобы освободить порты:
-     - **Для Windows:** Откройте командную строку и выполните:
-       ```shell
-       taskkill /F /IM java.exe
-       ```
-     - **Для Linux/macOS:** Откройте терминал и выполните:
-       ```shell
-       pkill java
-       ```
-   - Это важно, чтобы избежать конфликтов из-за занятых портов.
-
-2. **Запуск сервиса скреппера:**
-   - Откройте терминал (или командную строку) и перейдите в директорию скреппера:
-     ```shell
-     cd scrapper
-     mvn spring-boot:run
-     ```
-   - Дождитесь полной инициализации скреппера. Вы увидите сообщение в терминале, 
-     что приложение успешно запустилось (например, "Started ScrapperApplication").
-
-3. **Запуск бота:**
-   - Откройте новый терминал (не закрывая первый с запущенным скреппером).
-   - Из корневой директории проекта перейдите в директорию бота:
-     ```shell
-     cd bot
-     mvn spring-boot:run
-     ```
-   - Бот запустится и будет готов к взаимодействию через Telegram.
-
-**Примечание:** 
-- Убедитесь, что вы начинаете выполнение команд из корневой директории проекта, содержащей папки
-  `scrapper` и `bot`. 
-- Запускайте бота только после того, как скреппер полностью инициализируется, чтобы избежать проблем
-  с подключением.
-
-
-```
 

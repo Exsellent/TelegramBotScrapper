@@ -14,6 +14,7 @@ import lombok.ToString;
 @AllArgsConstructor
 public class CombinedPullRequestInfo {
     private String title;
+    private PullRequestResponse pullRequest;
     private List<IssuesCommentsResponse> issueComments;
     private List<PullCommentsResponse> pullComments;
 }

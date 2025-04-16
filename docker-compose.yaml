@@ -1,0 +1,41 @@
+services:
+  postgresql:
+    image: postgres:17
+    environment:
+      POSTGRES_DB: scrapper
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: 21Kaharaiona
+    ports:
+      - "5432:5432"
+    networks:
+      - backend
+    env_file:
+      - .env
+
+  migrations:
+    container_name: migrations
+    image: custom-liquibase:4.29
+    depends_on:
+      - postgresql
+    command:
+      - wait-for-it
+      - postgresql:5432
+      - --timeout=60  # Увеличиваем время ожидания до 60 секунд
+      - --
+      - liquibase
+      - --log-level=DEBUG
+      - --searchPath=/changesets
+      - --changelog-file=master.xml
+      - --driver=org.postgresql.Driver
+      - --url=jdbc:postgresql://postgresql:5432/scrapper
+      - --username=postgres
+      - --password=21Kaharaiona
+      - update
+    volumes:
+      - ./migrations:/changesets
+    networks:
+      - backend
+
+networks:
+  backend:
+    driver: bridge

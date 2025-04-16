@@ -152,6 +152,11 @@
                 <version>2.2.224</version>
                 <scope>runtime</scope>
             </dependency>
+            <dependency>
+                <groupId>io.projectreactor.netty</groupId>
+                <artifactId>reactor-netty</artifactId>
+                <version>1.2.2</version>
+            </dependency>
         </dependencies>
     </dependencyManagement>
 
@@ -210,6 +215,35 @@
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-data-jpa</artifactId>
         </dependency>
+        <dependency>
+            <groupId>org.testcontainers</groupId>
+            <artifactId>postgresql</artifactId>
+            <version>1.20.5</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.testcontainers</groupId>
+            <artifactId>junit-jupiter</artifactId>
+            <version>1.20.5</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.mockito</groupId>
+            <artifactId>mockito-core</artifactId>
+            <version>5.14.2</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.mockito</groupId>
+            <artifactId>mockito-inline</artifactId>
+            <version>5.2.0</version>
+            <scope>test</scope>
+        </dependency>
     </dependencies>
 
     <build>
@@ -236,21 +270,6 @@
                         </annotationProcessorPaths>
                     </configuration>
                 </plugin>
-                <!--                <plugin>-->
-                <!--                    <groupId>org.springframework.boot</groupId>-->
-                <!--                    <artifactId>spring-boot-maven-plugin</artifactId>-->
-                <!--                    <configuration>-->
-                <!--                        <excludes>-->
-                <!--                            <exclude>-->
-                <!--                                <groupId>org.projectlombok</groupId>-->
-                <!--                                <artifactId>lombok</artifactId>-->
-                <!--                                <version>${lombok.version}</version>-->
-                <!--                                <scope>provided</scope>-->
-                <!--                            </exclude>-->
-                <!--                        </excludes>-->
-                <!--                    </configuration>-->
-                <!--                </plugin>-->
-
                 <plugin>
                     <groupId>com.diffplug.spotless</groupId>
                     <artifactId>spotless-maven-plugin</artifactId>
@@ -341,7 +360,7 @@
                                     <banDuplicatePomDependencyVersions/>
                                     <banDynamicVersions/>
                                     <dependencyConvergence/>
-                                    <reactorModuleConvergence/>
+                                    <!--                                    <reactorModuleConvergence/>-->
                                 </rules>
                             </configuration>
                         </execution>
@@ -475,6 +494,14 @@
                         </goals>
                     </execution>
                 </executions>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <version>3.5.2</version>
+                <configuration>
+                    <argLine>-XX:+EnableDynamicAgentLoading -Xshare:off -javaagent:${settings.localRepository}/org/mockito/mockito-core/5.14.2/mockito-core-5.14.2.jar</argLine>
+                </configuration>
             </plugin>
         </plugins>
     </build>
