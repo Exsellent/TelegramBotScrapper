@@ -42,4 +42,3 @@ public class ApplicationConfig {
         return bot;
     }
 }
-
