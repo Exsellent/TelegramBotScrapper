@@ -76,4 +76,9 @@
     <Match>
         <Package name="~.*\.jmh_generated" />
     </Match>
+    <Match>
+        <Class name="backend.academy.scrapper.filter.RateLimitingFilter"/>
+        <Bug pattern="XSS_SERVLET"/>
+    </Match>
+
 </FindBugsFilter>

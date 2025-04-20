@@ -47,13 +47,14 @@ public class RateLimitingFilter implements Filter {
 
             response.setStatus(HttpStatus.TOO_MANY_REQUESTS.value());
             response.setContentType("application/json");
+            response.setHeader("X-Content-Type-Options", "nosniff");
+            response.setHeader("Content-Security-Policy", "default-src 'none'; frame-ancestors 'none'; sandbox");
             response.getWriter().write(objectMapper.writeValueAsString(errorResponse));
         } else {
             chain.doFilter(servletRequest, servletResponse);
         }
     }
 
-    // Метод для очистки счетчика в тестах
     public static void clearRequestCounts() {
         requestCounts.clear();
     }
