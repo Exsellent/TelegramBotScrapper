@@ -8,6 +8,8 @@ import backend.academy.bot.exception.ApiException;
 import backend.academy.bot.exception.FilterValidationException;
 import backend.academy.bot.exception.InvalidLinkException;
 import backend.academy.bot.utils.LinkParser;
+import io.github.resilience4j.circuitbreaker.CircuitBreaker;
+import io.github.resilience4j.circuitbreaker.CircuitBreakerRegistry;
 import jakarta.annotation.PostConstruct;
 import java.time.LocalDateTime;
 import java.util.Collections;
@@ -16,10 +18,12 @@ import java.util.Map;
 import java.util.Set;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.http.MediaType;
 import org.springframework.http.client.SimpleClientHttpRequestFactory;
@@ -32,31 +36,47 @@ public class ScrapperApiClient {
     private static final Logger LOGGER = LoggerFactory.getLogger(ScrapperApiClient.class);
     private final RestClient restClient;
     private final String baseUrl;
-
-    private static final int REQUEST_TIMEOUT = 30000; // 30 seconds timeout
-    private static final int MAX_RETRIES = 3;
+    private final RetryTemplate retryTemplate;
+    private final CircuitBreaker circuitBreaker;
 
     @Value("${conversation.timeout.minutes:15}")
     private int conversationTimeoutMinutes;
 
-    public ScrapperApiClient(@Value("${scrapper.api.base-url}") String baseUrl) {
+    public ScrapperApiClient(
+            @Value("${scrapper.api.base-url}") String baseUrl,
+            SimpleClientHttpRequestFactory requestFactory,
+            @Value("${retry.max-attempts:3}") int maxRetries,
+            @Value("${retry.first-backoff-seconds:1}") long backoffSeconds,
+            @Qualifier("circuitBreakerRegistry") CircuitBreakerRegistry circuitBreakerRegistry) {
         this.baseUrl = baseUrl;
         this.restClient = RestClient.builder()
-                .requestFactory(new SimpleClientHttpRequestFactory())
+                .requestFactory(requestFactory)
                 .defaultHeader(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE)
-                .defaultStatusHandler((HttpStatusCode status) -> status.is4xxClientError(), (request, response) -> {
+                .defaultStatusHandler(HttpStatusCode::is4xxClientError, (request, response) -> {
+                    if (response.getStatusCode() == HttpStatus.TOO_MANY_REQUESTS) {
+                        throw new ApiException("Rate limit exceeded: " + response.getStatusCode());
+                    }
                     throw new ApiException("Client error: " + response.getStatusCode());
                 })
-                .defaultStatusHandler((HttpStatusCode status) -> status.is5xxServerError(), (request, response) -> {
+                .defaultStatusHandler(HttpStatusCode::is5xxServerError, (request, response) -> {
                     throw new ApiException("Server error: " + response.getStatusCode());
                 })
                 .build();
+        this.retryTemplate = RetryTemplate.builder()
+                .maxAttempts(maxRetries)
+                .fixedBackoff(backoffSeconds * 1000)
+                .retryOn(ApiException.class)
+                .build();
+        this.circuitBreaker = circuitBreakerRegistry.circuitBreaker("scrapperApiClient");
     }
 
     @PostConstruct
     public void init() {
         try {
-            restClient.get().uri(baseUrl + "/actuator/health").retrieve().toBodilessEntity();
+            circuitBreaker.executeSupplier(() -> {
+                restClient.get().uri(baseUrl + "/actuator/health").retrieve().toBodilessEntity();
+                return null;
+            });
             LOGGER.info("The Scrapper API is available at: {}", baseUrl);
         } catch (Exception e) {
             LOGGER.warn("The Scrapper API is unavailable at: {}. Error: {}", baseUrl, e.getMessage());
@@ -66,14 +86,8 @@ public class ScrapperApiClient {
     public void addLink(Long chatId, AddLinkRequest requestPayload) {
         validateLinkRequest(requestPayload);
 
-        RetryTemplate retryTemplate = RetryTemplate.builder()
-                .maxAttempts(MAX_RETRIES)
-                .fixedBackoff(1000) // 1 second between retries
-                .retryOn(ApiException.class)
-                .build();
-
         try {
-            retryTemplate.execute(context -> {
+            circuitBreaker.executeSupplier(() -> retryTemplate.execute(context -> {
                 LOGGER.debug(
                         "Attempting to add link: {} for chat: {}, attempt: {}",
                         requestPayload.getLink(),
@@ -86,11 +100,11 @@ public class ScrapperApiClient {
                         .body(requestPayload)
                         .retrieve()
                         .toBodilessEntity();
-            });
+            }));
 
             LOGGER.info("Successfully added link: {} for chat: {}", requestPayload.getLink(), chatId);
         } catch (Exception e) {
-            LOGGER.error("Failed to add link after {} retries: {}", MAX_RETRIES, e.getMessage());
+            LOGGER.error("Failed to add link after retries: {}", e.getMessage());
             throw new ApiException("Failed to add link: " + e.getMessage(), e);
         }
     }
@@ -134,80 +148,89 @@ public class ScrapperApiClient {
     }
 
     public void removeLink(Long chatId, RemoveLinkRequest requestPayload) {
-        RetryTemplate retryTemplate = RetryTemplate.builder()
-                .maxAttempts(MAX_RETRIES)
-                .fixedBackoff(1000)
-                .retryOn(ApiException.class)
-                .build();
-
         try {
-            retryTemplate.execute(context -> {
+            circuitBreaker.executeSupplier(() -> retryTemplate.execute(context -> {
                 return restClient
                         .method(HttpMethod.DELETE)
                         .uri(baseUrl + "/chats/{chatId}/links", chatId)
                         .body(requestPayload)
                         .retrieve()
                         .toBodilessEntity();
-            });
+            }));
 
             LOGGER.info("Successfully removed link: {} for chat: {}", requestPayload.getLink(), chatId);
         } catch (Exception e) {
-            LOGGER.error("Failed to remove link after {} retries: {}", MAX_RETRIES, e.getMessage());
+            LOGGER.error("Failed to remove link after retries: {}", e.getMessage());
             throw new ApiException("Failed to remove link: " + e.getMessage(), e);
         }
     }
 
     public void cancelOperation(Long chatId) {
         try {
-            restClient
-                    .post()
-                    .uri(baseUrl + "/chats/{chatId}/cancel", chatId)
-                    .retrieve()
-                    .toBodilessEntity();
+            circuitBreaker.executeSupplier(() -> retryTemplate.execute(context -> {
+                return restClient
+                        .post()
+                        .uri(baseUrl + "/chats/{chatId}/cancel", chatId)
+                        .retrieve()
+                        .toBodilessEntity();
+            }));
 
             LOGGER.info("Successfully cancelled operation for chat: {}", chatId);
         } catch (Exception e) {
-            LOGGER.error("Failed to cancel operation: {}", e.getMessage());
+            LOGGER.error("Failed to cancel operation after retries: {}", e.getMessage());
             throw new ApiException("Failed to cancel operation: " + e.getMessage(), e);
         }
     }
 
     public List<LinkUpdateRequest> getUpdates() {
         try {
-            return restClient
-                    .get()
-                    .uri(baseUrl + "/updates")
-                    .retrieve()
-                    .body(new ParameterizedTypeReference<List<LinkUpdateRequest>>() {});
+            return circuitBreaker.executeSupplier(() -> retryTemplate.execute(context -> {
+                LOGGER.debug("Attempting to get updates, attempt: {}", context.getRetryCount() + 1);
+                return restClient
+                        .get()
+                        .uri(baseUrl + "/updates")
+                        .retrieve()
+                        .body(new ParameterizedTypeReference<List<LinkUpdateRequest>>() {});
+            }));
         } catch (Exception e) {
-            LOGGER.error("Error when receiving updates: {}", e.getMessage());
+            LOGGER.error("Error when receiving updates after retries: {}", e.getMessage());
             return Collections.emptyList();
         }
     }
 
     public ListLinksResponse getAllLinks(Long chatId) {
-        try {
-            return restClient
-                    .get()
-                    .uri(baseUrl + "/chats/{chatId}/links", chatId)
-                    .retrieve()
-                    .body(ListLinksResponse.class);
-        } catch (Exception e) {
-            LOGGER.error("Error when getting the list of links: {}", e.getMessage());
-            return new ListLinksResponse(Collections.emptyList());
-        }
+        return circuitBreaker.executeSupplier(() -> retryTemplate.execute(context -> {
+            LOGGER.debug("Attempting to get all links for chat {}, attempt: {}", chatId, context.getRetryCount() + 1);
+            try {
+                return restClient
+                        .get()
+                        .uri(baseUrl + "/chats/{chatId}/links", chatId)
+                        .retrieve()
+                        .body(ListLinksResponse.class);
+            } catch (ApiException e) {
+                LOGGER.error("API error for chat {}: {}", chatId, e.getMessage());
+                throw e;
+            }
+        }));
     }
 
     public void registerChat(Long chatId) {
         try {
-            restClient
-                    .post()
-                    .uri(baseUrl + "/chats/{chatId}", chatId)
-                    .retrieve()
-                    .toBodilessEntity();
+            circuitBreaker.executeSupplier(() -> retryTemplate.execute(context -> {
+                return restClient
+                        .post()
+                        .uri(baseUrl + "/chats/{chatId}", chatId)
+                        .retrieve()
+                        .toBodilessEntity();
+            }));
             LOGGER.info("Chat {} registered.", chatId);
         } catch (Exception e) {
-            LOGGER.error("Error registering the chat {}: {}", chatId, e.getMessage());
+            LOGGER.error("Error registering the chat {} after retries: {}", chatId, e.getMessage());
+            throw new ApiException("Failed to register chat: " + e.getMessage(), e);
         }
+    }
+
+    public CircuitBreaker getCircuitBreaker() {
+        return circuitBreaker;
     }
 }

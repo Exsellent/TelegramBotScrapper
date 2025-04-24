@@ -142,6 +142,17 @@
                 <artifactId>reactor-netty</artifactId>
                 <version>1.2.2</version>
             </dependency>
+            <dependency>
+                <groupId>io.github.resilience4j</groupId>
+                <artifactId>resilience4j-bom</artifactId>
+                <version>2.3.0</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+            <dependency>
+                <groupId>io.github.resilience4j</groupId>
+                <artifactId>resilience4j-reactor</artifactId>
+            </dependency>
         </dependencies>
     </dependencyManagement>
 
@@ -264,6 +275,7 @@
             <artifactId>spring-boot-configuration-processor</artifactId>
             <optional>true</optional>
         </dependency>
+
         <!--        <dependency>-->
         <!--            <groupId>org.slf4j</groupId>-->
         <!--            <artifactId>slf4j-simple</artifactId>-->
@@ -276,17 +288,23 @@
             <version>2.0.16</version>
             <scope>test</scope>
         </dependency>
+        <dependency>
+            <groupId>com.github.tomakehurst</groupId>
+            <artifactId>wiremock-jre8</artifactId>
+            <version>3.0.1</version>
+            <scope>test</scope>
+        </dependency>
+        <!--        &lt;!&ndash; SLF4J API &ndash;&gt;-->
         <!--        <dependency>-->
-        <!--            <groupId>org.apache.logging.log4j</groupId>-->
-        <!--            <artifactId>log4j-slf4j-impl</artifactId>-->
-        <!--            <version>2.24.1</version>-->
-        <!--            <scope>test</scope>-->
-        <!--            <exclusions>-->
-        <!--                <exclusion>-->
-        <!--                    <groupId>org.apache.logging.slf4j</groupId>-->
-        <!--                    <artifactId>slf4j-provider</artifactId>-->
-        <!--                </exclusion>-->
-        <!--            </exclusions>-->
+        <!--            <groupId>org.slf4j</groupId>-->
+        <!--            <artifactId>slf4j-api</artifactId>-->
+        <!--            <version>2.0.13</version>-->
+        <!--        </dependency>-->
+        <!-- Logback как единственный провайдер -->
+        <!--        <dependency>-->
+        <!--            <groupId>ch.qos.logback</groupId>-->
+        <!--            <artifactId>logback-classic</artifactId>-->
+        <!--            <version>1.5.6</version>-->
         <!--        </dependency>-->
     </dependencies>
 

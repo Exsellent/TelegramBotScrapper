@@ -1,10 +1,8 @@
 app:
   telegram-token: ${APP_TELEGRAM_TOKEN}
-
 scrapper:
   api:
     base-url: ${SCRAPPER_API_BASE_URL:http://scrapper:8081/api}
-
 spring:
   datasource:
     url: jdbc:postgresql://postgresql:5432/scrapper
@@ -19,27 +17,23 @@ spring:
     time-zone: UTC
 server:
   port: 8080
-
 logging:
   config: classpath:log4j2-plain.xml
-
   level:
     org.springframework.core.env: TRACE
     backend.academy.bot: DEBUG
-
 springdoc:
   swagger-ui:
     path: /swagger-ui
-
+http:
+  client:
+    connectTimeout: 5000
+    readTimeout: 10000
+retry:
+  max-attempts: 3
+  first-backoff-seconds: 1
+  retryable-status-codes: [500, 502, 503, 504, 429]
 rate-limiting:
-  capacity: 20
-  tokens: 20
-  refill-duration: 60 # Время в секундах
-
-backoff:
-  strategy: exponential # Или "constant", "linear"
-  initialDelay: 1000
-  multiplier: 2.0
-  increment: 1000
-  maxAttempts: 1000
-  retryable-status-codes: [ 500, 502, 503, 504 ]
+  capacity: 100
+  tokens: 100
+  refill-duration: 60

@@ -116,52 +116,54 @@ services:
       - .env
 
 
-  scrapper:
-    build:
-      context: .
-      dockerfile: Dockerfile
-      args:
-        JAR_FILE: scrapper/target/scrapper.jar
-    ports:
-      - "8082:8081"
-    depends_on:
-      postgresql:
-        condition: service_healthy
-      kafka-setup:
-        condition: service_completed_successfully
-    environment:
-      - SPRING_DATASOURCE_URL=jdbc:postgresql://postgresql:5432/scrapper
-      - SPRING_DATASOURCE_USERNAME=postgres
-      - SPRING_DATASOURCE_PASSWORD=${POSTGRES_PASSWORD}
-      - SPRING_DATASOURCE_DRIVER_CLASS_NAME=org.postgresql.Driver
-      - SPRING_REDIS_HOST=redis
-      - SPRING_REDIS_PORT=6379
-      - APP_DATABASE_ACCESS_TYPE=JDBC
-      - SPRING_LIQUIBASE_ENABLED=false
-      - APP_CHECK_INTERVAL_MINUTES=5
-      - APP_KAFKA_TOPICS_LINK_UPDATES=link-updates
-      - APP_MESSAGE_TRANSPORT=Kafka
-      - APP_KAFKA_TOPICS_NOTIFICATIONS=link-updates
-      - APP_KAFKA_TOPICS_DLQ=link-updates-dlq
-      - APP_KAFKA_TOPICS_LINK_COMMANDS=link-commands
-      - SCRAPPER_BOT_GITHUB_TOKEN=your_github_token_here
-      - SPRING_KAFKA_BOOTSTRAP_SERVERS=kafka:9092
-      - SERVER_STARTUP_DELAY=30000
-      - SERVER_ADDRESS=0.0.0.0
-      - LOGGING_LEVEL_ROOT=INFO
 
-    command: [ "java", "-jar", "/app/app.jar" ]
-    healthcheck:
-      test: ["CMD-SHELL", "curl -f http://localhost:8081/api/actuator/health || exit 1"]
-      interval: 10s
-      timeout: 5s
-      retries: 10
-      start_period: 60s
-    networks:
-      - backend
-    restart: unless-stopped
-    env_file:
-      - .env
+  scrapper:
+      build:
+        context: .
+        dockerfile: Dockerfile
+        args:
+          JAR_FILE: scrapper/target/scrapper.jar
+      ports:
+        - "8082:8081"
+      depends_on:
+        postgresql:
+          condition: service_healthy
+        kafka-setup:
+          condition: service_completed_successfully
+      environment:
+        - SPRING_DATASOURCE_URL=jdbc:postgresql://postgresql:5432/scrapper
+        - SPRING_DATASOURCE_USERNAME=postgres
+        - SPRING_DATASOURCE_PASSWORD=${POSTGRES_PASSWORD}
+        - SPRING_DATASOURCE_DRIVER_CLASS_NAME=org.postgresql.Driver
+        - SPRING_REDIS_HOST=redis
+        - SPRING_REDIS_PORT=6379
+        - APP_DATABASE_ACCESS_TYPE=JDBC
+        - SPRING_LIQUIBASE_ENABLED=false
+        - APP_CHECK_INTERVAL_MINUTES=5
+        - APP_KAFKA_TOPICS_LINK_UPDATES=link-updates
+        - APP_MESSAGE_TRANSPORT=Kafka
+        - APP_KAFKA_TOPICS_NOTIFICATIONS=link-updates
+        - APP_KAFKA_TOPICS_DLQ=link-updates-dlq
+        - APP_KAFKA_TOPICS_LINK_COMMANDS=link-commands
+        - SCRAPPER_BOT_GITHUB_TOKEN=your_github_token_here
+        - SPRING_KAFKA_BOOTSTRAP_SERVERS=kafka:9092
+        - SERVER_STARTUP_DELAY=30000
+        - SERVER_ADDRESS=0.0.0.0
+        - LOGGING_LEVEL_ROOT=INFO
+        - APP_TELEGRAM_TOKEN=7394729669:AAESKNso0R1AaRZRxN3zFYGeMq3FbEZ69cw
+      command: [ "java", "-jar", "/app/app.jar" ]
+      healthcheck:
+        test: [ "CMD-SHELL", "curl -f http://localhost:8081/actuator/health || exit 1" ]
+        interval: 10s
+        timeout: 5s
+        retries: 10
+        start_period: 60s
+      networks:
+        - backend
+      restart: unless-stopped
+      env_file:
+        - .env
+
 
   bot:
     container_name: bot
@@ -179,8 +181,6 @@ services:
         condition: service_healthy
       kafka-setup:
         condition: service_completed_successfully
-      scrapper:
-        condition: service_started
     environment:
       - SPRING_DATASOURCE_URL=jdbc:postgresql://postgresql:5432/scrapper
       - SPRING_DATASOURCE_USERNAME=postgres
