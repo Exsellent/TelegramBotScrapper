@@ -52,9 +52,8 @@ retry:
   retryable-status-codes: [500, 502, 503, 504]
 
 rate-limiting:
-  capacity: 100
-  tokens: 100
-  refill-duration: 60
+  request-limit: 100
+  window-seconds: 60
 
 github:
   base:

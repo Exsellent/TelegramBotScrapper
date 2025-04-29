@@ -1,11 +1,10 @@
 package backend.academy.scrapper.client;
 
 import backend.academy.scrapper.dto.LinkUpdateRequest;
+import io.github.resilience4j.circuitbreaker.CallNotPermittedException;
 import io.github.resilience4j.circuitbreaker.CircuitBreaker;
 import io.github.resilience4j.circuitbreaker.CircuitBreakerRegistry;
 import io.github.resilience4j.reactor.circuitbreaker.operator.CircuitBreakerOperator;
-import java.time.Duration;
-import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -30,15 +29,7 @@ public class BotApiClient {
             @Value("${retry.first-backoff-seconds:1}") long backoffSeconds,
             @Qualifier("circuitBreakerRegistry") CircuitBreakerRegistry circuitBreakerRegistry) {
         this.webClient = webClient;
-        this.retrySpec = Retry.fixedDelay(maxAttempts, Duration.ofSeconds(backoffSeconds))
-                .filter(throwable -> {
-                    if (throwable instanceof WebClientResponseException ex) {
-                        return List.of(500, 502, 503, 504)
-                                .contains(ex.getStatusCode().value());
-                    }
-                    return false;
-                })
-                .doBeforeRetry(signal -> log.debug("Retrying Bot API request, attempt: {}", signal.totalRetries() + 1));
+        this.retrySpec = ResilienceUtils.createRetrySpec(maxAttempts, backoffSeconds, log, "Bot API");
         this.circuitBreaker = circuitBreakerRegistry.circuitBreaker("botApiClient");
     }
 
@@ -53,15 +44,19 @@ public class BotApiClient {
                 .transformDeferred(CircuitBreakerOperator.of(circuitBreaker))
                 .retryWhen(retrySpec)
                 .doOnError(error -> log.error("Error posting update: {}", error.getMessage()))
-                .onErrorMap(throwable -> {
+                .onErrorResume(throwable -> {
+                    if (throwable instanceof CallNotPermittedException
+                            || reactor.core.Exceptions.isRetryExhausted(throwable)) {
+                        log.error("Fallback: Failed to post update: {}", throwable.getMessage());
+                        return Mono.empty();
+                    }
                     if (throwable instanceof WebClientResponseException ex) {
                         log.error(
                                 "API error for update: status code {}, response body: {}",
                                 ex.getStatusCode(),
                                 ex.getResponseBodyAsString());
-                        return new RuntimeException("Bot API error: " + ex.getStatusCode(), ex);
                     }
-                    return throwable;
+                    return Mono.error(throwable);
                 })
                 .then();
     }

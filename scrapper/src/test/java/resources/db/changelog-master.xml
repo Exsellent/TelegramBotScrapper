@@ -1,0 +1,15 @@
+<databaseChangeLog xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+                   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                   xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                   http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+    <include file="00-create_link_table.sql" relativeToChangelogFile="true"/>
+    <include file="01-create_chat_table.sql" relativeToChangelogFile="true"/>
+    <include file="02-create_chat_link_table.sql" relativeToChangelogFile="true"/>
+    <include file="03-drop_created_by_from_chat_table.sql" relativeToChangelogFile="true"/>
+    <include file="04-cascade_delete_for_chat_link_table.sql" relativeToChangelogFile="true"/>
+    <include file="05-add_columns_for_scrapper_link_table.sql" relativeToChangelogFile="true"/>
+    <include file="06-create_tags_table.sql" relativeToChangelogFile="true"/>
+    <include file="07-create_link_tags_table.sql" relativeToChangelogFile="true"/>
+    <include file="08-drop_created_by_from_link_table.sql" relativeToChangelogFile="true"/>
+    <include file="09-add_filters_to_chat_link.sql" relativeToChangelogFile="true"/>
+</databaseChangeLog>

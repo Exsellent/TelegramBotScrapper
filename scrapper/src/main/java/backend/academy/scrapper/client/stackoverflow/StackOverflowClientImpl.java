@@ -1,13 +1,14 @@
 package backend.academy.scrapper.client.stackoverflow;
 
+import backend.academy.scrapper.client.ResilienceUtils;
 import backend.academy.scrapper.dto.AnswerResponse;
 import backend.academy.scrapper.dto.AnswersApiResponse;
 import backend.academy.scrapper.dto.QuestionResponse;
 import backend.academy.scrapper.dto.QuestionsApiResponse;
+import io.github.resilience4j.circuitbreaker.CallNotPermittedException;
 import io.github.resilience4j.circuitbreaker.CircuitBreaker;
 import io.github.resilience4j.circuitbreaker.CircuitBreakerRegistry;
 import io.github.resilience4j.reactor.circuitbreaker.operator.CircuitBreakerOperator;
-import java.time.Duration;
 import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
 import org.slf4j.Logger;
@@ -42,16 +43,7 @@ public class StackOverflowClientImpl implements StackOverflowClient {
             @Value("${retry.first-backoff-seconds:1}") long backoffSeconds,
             @Qualifier("circuitBreakerRegistry") CircuitBreakerRegistry circuitBreakerRegistry) {
         this.webClient = webClient;
-        this.retrySpec = Retry.fixedDelay(maxAttempts, Duration.ofSeconds(backoffSeconds))
-                .filter(throwable -> {
-                    if (throwable instanceof WebClientResponseException ex) {
-                        return List.of(500, 502, 503, 504)
-                                .contains(ex.getStatusCode().value());
-                    }
-                    return false;
-                })
-                .doBeforeRetry(signal ->
-                        LOGGER.debug("Retrying StackOverflow request, attempt: {}", signal.totalRetries() + 1));
+        this.retrySpec = ResilienceUtils.createRetrySpec(maxAttempts, backoffSeconds, LOGGER, "StackOverflow");
         this.circuitBreaker = circuitBreakerRegistry.circuitBreaker("stackOverflowClient");
     }
 
@@ -71,21 +63,26 @@ public class StackOverflowClientImpl implements StackOverflowClient {
                     .retrieve()
                     .bodyToMono(QuestionsApiResponse.class)
                     .map(QuestionsApiResponse::getItems)
-                    .transformDeferred(CircuitBreakerOperator.of(circuitBreaker))
                     .retryWhen(retrySpec)
+                    .transformDeferred(CircuitBreakerOperator.of(circuitBreaker))
                     .publishOn(Schedulers.boundedElastic())
                     .doOnSuccess(questions -> LOGGER.debug("Successfully fetched questions: {}", ids))
                     .doOnError(error -> LOGGER.error("Error fetching questions {}: {}", ids, error.getMessage()))
-                    .onErrorMap(throwable -> {
+                    .onErrorResume(throwable -> {
+                        if (reactor.core.Exceptions.isRetryExhausted(throwable)
+                                || throwable instanceof CallNotPermittedException) {
+                            LOGGER.error("Fallback: Failed to fetch questions {}: {}", ids, throwable.getMessage());
+                            return Mono.just(List.of());
+                        }
                         if (throwable instanceof WebClientResponseException ex) {
                             LOGGER.error(
                                     "API error for questions {}: status code {}, response body: {}",
                                     ids,
                                     ex.getStatusCode(),
                                     ex.getResponseBodyAsString());
-                            return new RuntimeException(API_ERROR + ": " + ex.getStatusCode(), ex);
+                            return Mono.error(new RuntimeException(API_ERROR + ": " + ex.getStatusCode(), ex));
                         }
-                        return throwable;
+                        return Mono.error(throwable);
                     })
                     .cache();
         });
@@ -108,21 +105,26 @@ public class StackOverflowClientImpl implements StackOverflowClient {
                     .bodyToMono(AnswersApiResponse.class)
                     .map(AnswersApiResponse::getItems)
                     .switchIfEmpty(Mono.just(List.of()))
-                    .transformDeferred(CircuitBreakerOperator.of(circuitBreaker))
                     .retryWhen(retrySpec)
+                    .transformDeferred(CircuitBreakerOperator.of(circuitBreaker))
                     .publishOn(Schedulers.boundedElastic())
                     .doOnSuccess(items -> LOGGER.debug("Successfully fetched {} answers for {}", items.size(), ids))
                     .doOnError(error -> LOGGER.error("Error fetching answers for {}: {}", ids, error.getMessage()))
-                    .onErrorMap(throwable -> {
+                    .onErrorResume(throwable -> {
+                        if (reactor.core.Exceptions.isRetryExhausted(throwable)
+                                || throwable instanceof CallNotPermittedException) {
+                            LOGGER.error("Fallback: Failed to fetch answers {}: {}", ids, throwable.getMessage());
+                            return Mono.just(List.of());
+                        }
                         if (throwable instanceof WebClientResponseException ex) {
                             LOGGER.error(
                                     "API error for answers {}: status code {}, response body: {}",
                                     ids,
                                     ex.getStatusCode(),
                                     ex.getResponseBodyAsString());
-                            return new RuntimeException(API_ERROR + ": " + ex.getStatusCode(), ex);
+                            return Mono.error(new RuntimeException(API_ERROR + ": " + ex.getStatusCode(), ex));
                         }
-                        return throwable;
+                        return Mono.error(throwable);
                     })
                     .cache();
         });

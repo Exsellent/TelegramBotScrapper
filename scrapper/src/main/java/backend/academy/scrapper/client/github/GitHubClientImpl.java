@@ -3,6 +3,7 @@ package backend.academy.scrapper.client.github;
 import backend.academy.scrapper.dto.IssuesCommentsResponse;
 import backend.academy.scrapper.dto.PullCommentsResponse;
 import backend.academy.scrapper.dto.PullRequestResponse;
+import io.github.resilience4j.circuitbreaker.CallNotPermittedException;
 import io.github.resilience4j.circuitbreaker.CircuitBreaker;
 import io.github.resilience4j.circuitbreaker.CircuitBreakerRegistry;
 import io.github.resilience4j.reactor.circuitbreaker.operator.CircuitBreakerOperator;
@@ -37,13 +38,19 @@ public class GitHubClientImpl implements GitHubClient {
         this.retrySpec = Retry.fixedDelay(maxAttempts, Duration.ofSeconds(backoffSeconds))
                 .filter(throwable -> {
                     if (throwable instanceof WebClientResponseException ex) {
+                        LOGGER.debug(
+                                "Filtering throwable for retry, status: {}",
+                                ex.getStatusCode().value());
                         return List.of(500, 502, 503, 504)
                                 .contains(ex.getStatusCode().value());
                     }
                     return false;
                 })
-                .doBeforeRetry(
-                        signal -> LOGGER.debug("Retrying GitHub request, attempt: {}", signal.totalRetries() + 1));
+                .doBeforeRetry(signal -> LOGGER.debug(
+                        "Retrying GitHub request, attempt: {}/{}, error: {}",
+                        signal.totalRetries() + 1,
+                        maxAttempts,
+                        signal.failure().getMessage()));
         this.circuitBreaker = circuitBreakerRegistry.circuitBreaker("gitHubClient");
     }
 
@@ -76,16 +83,25 @@ public class GitHubClientImpl implements GitHubClient {
                     .doOnSuccess(pr -> LOGGER.debug("Successfully fetched {} details for {}", type, key))
                     .doOnError(error ->
                             LOGGER.error("Error fetching {} details for {}: {}", type, key, error.getMessage()))
-                    .onErrorMap(throwable -> {
+                    .onErrorResume(throwable -> {
+                        if (reactor.core.Exceptions.isRetryExhausted(throwable)
+                                || throwable instanceof CallNotPermittedException) {
+                            LOGGER.error(
+                                    "Fallback: Failed to fetch {} details for {}: {}",
+                                    type,
+                                    key,
+                                    throwable.getMessage());
+                            return Mono.just(new PullRequestResponse());
+                        }
                         if (throwable instanceof WebClientResponseException ex) {
                             LOGGER.error(
                                     "API error for {}: status code {}, response body: {}",
                                     key,
                                     ex.getStatusCode(),
                                     ex.getResponseBodyAsString());
-                            return new RuntimeException("GitHub API error: " + ex.getStatusCode(), ex);
+                            return Mono.error(new RuntimeException("GitHub API error: " + ex.getStatusCode(), ex));
                         }
-                        return throwable;
+                        return Mono.error(throwable);
                     })
                     .cache();
         });
@@ -109,16 +125,22 @@ public class GitHubClientImpl implements GitHubClient {
                     .doOnComplete(() -> LOGGER.debug("Successfully fetched issue comments for {}", key))
                     .doOnError(
                             error -> LOGGER.error("Error fetching issue comments for {}: {}", key, error.getMessage()))
-                    .onErrorMap(throwable -> {
+                    .onErrorResume(throwable -> {
+                        if (reactor.core.Exceptions.isRetryExhausted(throwable)
+                                || throwable instanceof CallNotPermittedException) {
+                            LOGGER.error(
+                                    "Fallback: Failed to fetch issue comments for {}: {}", key, throwable.getMessage());
+                            return Flux.empty();
+                        }
                         if (throwable instanceof WebClientResponseException ex) {
                             LOGGER.error(
                                     "API error for issue comments {}: status code {}, response body: {}",
                                     key,
                                     ex.getStatusCode(),
                                     ex.getResponseBodyAsString());
-                            return new RuntimeException("GitHub API error: " + ex.getStatusCode(), ex);
+                            return Flux.error(new RuntimeException("GitHub API error: " + ex.getStatusCode(), ex));
                         }
-                        return throwable;
+                        return Flux.error(throwable);
                     })
                     .cache();
         });
@@ -142,16 +164,22 @@ public class GitHubClientImpl implements GitHubClient {
                     .doOnComplete(() -> LOGGER.debug("Successfully fetched pull comments for {}", key))
                     .doOnError(
                             error -> LOGGER.error("Error fetching pull comments for {}: {}", key, error.getMessage()))
-                    .onErrorMap(throwable -> {
+                    .onErrorResume(throwable -> {
+                        if (reactor.core.Exceptions.isRetryExhausted(throwable)
+                                || throwable instanceof CallNotPermittedException) {
+                            LOGGER.error(
+                                    "Fallback: Failed to fetch pull comments for {}: {}", key, throwable.getMessage());
+                            return Flux.empty();
+                        }
                         if (throwable instanceof WebClientResponseException ex) {
                             LOGGER.error(
                                     "API error for pull comments {}: status code {}, response body: {}",
                                     key,
                                     ex.getStatusCode(),
                                     ex.getResponseBodyAsString());
-                            return new RuntimeException("GitHub API error: " + ex.getStatusCode(), ex);
+                            return Flux.error(new RuntimeException("GitHub API error: " + ex.getStatusCode(), ex));
                         }
-                        return throwable;
+                        return Flux.error(throwable);
                     })
                     .cache();
         });

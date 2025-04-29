@@ -1,0 +1,18 @@
+spring:
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092} # Будет переопределяться Testcontainers
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+app:
+  kafka:
+    topics:
+      link-commands: link-commands
+  telegram-token: test-token # Заглушка для тестов
+  message-transport: Kafka
+logging:
+  level:
+    org.springframework: DEBUG
+    org.apache.kafka: DEBUG
+    backend.academy.bot: DEBUG

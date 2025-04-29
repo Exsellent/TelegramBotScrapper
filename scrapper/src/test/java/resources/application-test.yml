@@ -1,0 +1,39 @@
+spring:
+  config:
+    activate:
+      on-profile: test
+  liquibase:
+    enabled: false
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.H2Dialect
+  datasource:
+    url: jdbc:h2:mem:testdb;DB_CLOSE_DELAY=-1
+    driver-class-name: org.h2.Driver
+    username: sa
+    password:
+  h2:
+    console:
+      enabled: true
+app:
+  database-access-type: jdbc
+  scheduler:
+    enable: false
+    interval: PT1M
+    force-check-delay: PT1M
+  check-interval-minutes: 5
+  migrations-dir: db
+logging:
+  level:
+    liquibase: DEBUG
+    backend.academy.scrapper.database: DEBUG
+    org.springframework: DEBUG
+retry:
+  max-attempts: 3
+  first-backoff-seconds: 1
+rate-limiting:
+  request-limit: 5
+  window-seconds: 60

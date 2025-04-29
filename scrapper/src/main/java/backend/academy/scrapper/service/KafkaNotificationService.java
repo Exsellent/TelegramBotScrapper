@@ -1,5 +1,6 @@
 package backend.academy.scrapper.service;
 
+import backend.academy.scrapper.client.BotApiClient;
 import backend.academy.scrapper.dto.LinkUpdateRequest;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -17,37 +18,33 @@ public class KafkaNotificationService implements NotificationService {
     private static final Logger LOGGER = LoggerFactory.getLogger(KafkaNotificationService.class);
 
     private final KafkaTemplate<String, LinkUpdateRequest> kafkaTemplate;
+    private final BotApiClient botApiClient;
     private final String notificationTopic;
-    private final String dlqTopic;
 
     @Autowired
     public KafkaNotificationService(
             KafkaTemplate<String, LinkUpdateRequest> kafkaTemplate,
-            @Value("${app.kafka.topics.notifications}") String notificationTopic,
-            @Value("${app.kafka.topics.dlq}") String dlqTopic) {
+            BotApiClient botApiClient,
+            @Value("${app.kafka.topics.notifications}") String notificationTopic) {
         this.kafkaTemplate = kafkaTemplate;
+        this.botApiClient = botApiClient;
         this.notificationTopic = notificationTopic;
-        this.dlqTopic = dlqTopic;
 
-        LOGGER.info(
-                "KafkaNotificationService initialized with notificationTopic: {}, dlqTopic: {}",
-                notificationTopic,
-                dlqTopic);
+        LOGGER.info("KafkaNotificationService initialized with notificationTopic: {}", notificationTopic);
     }
 
     @Override
     public Mono<Void> sendNotification(LinkUpdateRequest update) {
         return Mono.fromFuture(kafkaTemplate.send(notificationTopic, update))
-                .doOnSuccess(result -> LOGGER.info("Sent message to Kafka topic {}: {}", notificationTopic, update))
-                .doOnError(e -> {
-                    kafkaTemplate.send(dlqTopic, update);
-                    LOGGER.error(
-                            "Failed to send message to Kafka topic {}. Sent to DLQ topic {}: {}",
-                            notificationTopic,
-                            dlqTopic,
-                            update,
-                            e);
-                })
-                .then();
+                .then()
+                .doOnSuccess(v -> LOGGER.info("Sent message to Kafka topic {}: {}", notificationTopic, update))
+                .onErrorResume(e -> {
+                    LOGGER.error("Kafka failed, falling back to HTTP: {}", e.getMessage());
+                    return botApiClient
+                            .postUpdate(update)
+                            .doOnSuccess(v -> LOGGER.info("Sent message to HTTP endpoint: {}", update))
+                            .doOnError(httpError -> LOGGER.error("Failed to send to HTTP: {}", httpError.getMessage()))
+                            .onErrorResume(httpError -> Mono.empty());
+                });
     }
 }
