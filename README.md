@@ -239,7 +239,7 @@ java-Exsellent/
 │       │       ├── dto/               # DTO-объекты
 │       │       ├── exception/         # Кастомные исключения
 │       │       ├── insidebot/         # TelegramBotService и логика бота
-│       │       ├── service/           # KafkaService, RedisCacheService, NotificationBatchService и др.
+│       │       ├── service/           # KafkaService, RedisCacheService![img.png](img.png), NotificationBatchService и др.
 │       │       └── utils/             # Парсеры ссылок
 │       └── resources/
 │           ├── application.yaml       # Конфигурация
