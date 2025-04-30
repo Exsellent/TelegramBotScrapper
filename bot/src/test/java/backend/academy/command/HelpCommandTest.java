@@ -20,7 +20,7 @@ class HelpCommandTest {
         // Мокаем команду /start
         Command startCommandMock = mock(Command.class);
         when(startCommandMock.command()).thenReturn("/start");
-        when(startCommandMock.description()).thenReturn("Launch the bot"); // Исправлено
+        when(startCommandMock.description()).thenReturn("Launch the bot");
 
         // Создаем список команд
         List<Command> commands = List.of(startCommandMock);

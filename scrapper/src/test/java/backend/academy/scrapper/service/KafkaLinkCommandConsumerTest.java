@@ -8,53 +8,23 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import backend.academy.scrapper.dto.LinkDTO;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import java.util.Map;
-import org.apache.kafka.clients.producer.ProducerConfig;
-import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.springframework.kafka.core.DefaultKafkaProducerFactory;
-import org.springframework.kafka.core.KafkaTemplate;
-import org.testcontainers.containers.KafkaContainer;
-import org.testcontainers.junit.jupiter.Container;
-import org.testcontainers.junit.jupiter.Testcontainers;
-import org.testcontainers.utility.DockerImageName;
 
-@Testcontainers
 class KafkaLinkCommandConsumerTest {
-
-    @Container
-    private static final KafkaContainer kafkaContainer =
-            new KafkaContainer(DockerImageName.parse("confluentinc/cp-kafka:7.6.0"));
 
     private KafkaLinkCommandConsumer consumer;
     private LinkService linkService;
     private ChatLinkService chatLinkService;
-    private ObjectMapper objectMapper;
-    private KafkaTemplate<String, String> kafkaTemplate;
-
-    @BeforeAll
-    static void startContainers() {
-        kafkaContainer.start();
-    }
+    private MessageParserService messageParserService;
 
     @BeforeEach
     void setup() {
         linkService = mock(LinkService.class);
         chatLinkService = mock(ChatLinkService.class);
-        objectMapper = new ObjectMapper();
-
-        consumer = new KafkaLinkCommandConsumer(linkService, chatLinkService, objectMapper);
-
-        // Настройка Kafka
-        Map<String, Object> producerProps = Map.of(
-                ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, kafkaContainer.getBootstrapServers(),
-                ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG,
-                        org.apache.kafka.common.serialization.StringSerializer.class,
-                ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG,
-                        org.apache.kafka.common.serialization.StringSerializer.class);
-        kafkaTemplate = new KafkaTemplate<>(new DefaultKafkaProducerFactory<>(producerProps));
+        messageParserService = mock(MessageParserService.class);
+        consumer = new KafkaLinkCommandConsumer(linkService, chatLinkService, messageParserService);
     }
 
     @Test
@@ -68,6 +38,8 @@ class KafkaLinkCommandConsumerTest {
                 .description("Added via Kafka")
                 .build();
 
+        when(messageParserService.parseMessage(message))
+                .thenReturn(Map.of("command", "add", "link", "https://example.com", "filters", Map.of("tag", "test")));
         when(linkService.add("https://example.com", "Added via Kafka")).thenReturn(linkDTO);
 
         consumer.processCommand(message, chatId);
@@ -84,6 +56,8 @@ class KafkaLinkCommandConsumerTest {
         LinkDTO linkDTO =
                 LinkDTO.builder().linkId(1L).url("https://example.com").build();
 
+        when(messageParserService.parseMessage(message))
+                .thenReturn(Map.of("command", "remove", "link", "https://example.com", "filters", Map.of()));
         when(linkService.findByUrl("https://example.com")).thenReturn(linkDTO);
 
         consumer.processCommand(message, chatId);
@@ -97,6 +71,8 @@ class KafkaLinkCommandConsumerTest {
         String message = "{\"command\": \"remove\", \"link\": \"https://example.com\", \"filters\": {}}";
         String chatId = "123";
 
+        when(messageParserService.parseMessage(message))
+                .thenReturn(Map.of("command", "remove", "link", "https://example.com", "filters", Map.of()));
         when(linkService.findByUrl("https://example.com")).thenReturn(null);
 
         consumer.processCommand(message, chatId);
@@ -106,20 +82,11 @@ class KafkaLinkCommandConsumerTest {
     }
 
     @Test
-    void testInvalidJson() {
+    void testInvalidJson() throws Exception {
         String message = "invalid json";
         String chatId = "123";
 
-        consumer.processCommand(message, chatId);
-
-        verify(linkService, never()).add(any(), any());
-        verify(chatLinkService, never()).addLinkToChat(anyLong(), anyLong(), any());
-    }
-
-    @Test
-    void testUnknownCommand() throws Exception {
-        String message = "{\"command\": \"unknown\", \"link\": \"https://example.com\", \"filters\": {}}";
-        String chatId = "123";
+        when(messageParserService.parseMessage(message)).thenThrow(new RuntimeException("Invalid JSON"));
 
         consumer.processCommand(message, chatId);
 

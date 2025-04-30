@@ -1,28 +1,30 @@
 package backend.academy.scrapper.service;
 
-import static org.mockito.Mockito.*;
+import static org.mockito.Mockito.any;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 import backend.academy.scrapper.client.BotApiClient;
 import backend.academy.scrapper.dto.LinkUpdateRequest;
 import java.util.List;
-import java.util.concurrent.CompletableFuture;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.springframework.kafka.core.KafkaTemplate;
 import reactor.core.publisher.Mono;
 import reactor.test.StepVerifier;
 
 class KafkaNotificationServiceTest {
 
-    private KafkaTemplate<String, LinkUpdateRequest> kafkaTemplate;
+    private KafkaService kafkaService;
     private BotApiClient botApiClient;
     private KafkaNotificationService service;
 
     @BeforeEach
     void setup() {
-        kafkaTemplate = mock(KafkaTemplate.class);
+        kafkaService = mock(KafkaService.class);
         botApiClient = mock(BotApiClient.class);
-        service = new KafkaNotificationService(kafkaTemplate, botApiClient, "notifications");
+        service = new KafkaNotificationService(kafkaService, botApiClient, "notifications");
     }
 
     @Test
@@ -30,11 +32,11 @@ class KafkaNotificationServiceTest {
         LinkUpdateRequest update =
                 new LinkUpdateRequest(1L, "https://example.com", "Update", "Some content", List.of(123L));
 
-        when(kafkaTemplate.send("notifications", update)).thenReturn(CompletableFuture.completedFuture(null));
+        when(kafkaService.sendNotification("notifications", update)).thenReturn(Mono.empty());
 
         StepVerifier.create(service.sendNotification(update)).verifyComplete();
 
-        verify(kafkaTemplate).send("notifications", update);
+        verify(kafkaService).sendNotification("notifications", update);
         verify(botApiClient, never()).postUpdate(any());
     }
 
@@ -43,13 +45,13 @@ class KafkaNotificationServiceTest {
         LinkUpdateRequest update =
                 new LinkUpdateRequest(1L, "https://example.com", "Update", "Some content", List.of(123L));
 
-        when(kafkaTemplate.send("notifications", update))
-                .thenReturn(CompletableFuture.failedFuture(new RuntimeException("Kafka error")));
-        when(botApiClient.postUpdate(update)).thenReturn(Mono.empty()); // Успешный HTTP fallback
+        when(kafkaService.sendNotification("notifications", update))
+                .thenReturn(Mono.error(new RuntimeException("Kafka error")));
+        when(botApiClient.postUpdate(update)).thenReturn(Mono.empty());
 
         StepVerifier.create(service.sendNotification(update)).verifyComplete();
 
-        verify(kafkaTemplate).send("notifications", update);
+        verify(kafkaService).sendNotification("notifications", update);
         verify(botApiClient).postUpdate(update);
     }
 
@@ -58,13 +60,13 @@ class KafkaNotificationServiceTest {
         LinkUpdateRequest update =
                 new LinkUpdateRequest(1L, "https://example.com", "Update", "Some content", List.of(123L));
 
-        when(kafkaTemplate.send("notifications", update))
-                .thenReturn(CompletableFuture.failedFuture(new RuntimeException("Kafka error")));
+        when(kafkaService.sendNotification("notifications", update))
+                .thenReturn(Mono.error(new RuntimeException("Kafka error")));
         when(botApiClient.postUpdate(update)).thenReturn(Mono.error(new RuntimeException("HTTP error")));
 
         StepVerifier.create(service.sendNotification(update)).verifyComplete();
 
-        verify(kafkaTemplate).send("notifications", update);
+        verify(kafkaService).sendNotification("notifications", update);
         verify(botApiClient).postUpdate(update);
     }
 }

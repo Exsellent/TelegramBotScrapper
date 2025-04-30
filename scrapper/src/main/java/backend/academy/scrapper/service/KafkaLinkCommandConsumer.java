@@ -1,9 +1,6 @@
 package backend.academy.scrapper.service;
 
 import backend.academy.scrapper.dto.LinkDTO;
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -16,16 +13,20 @@ import org.springframework.stereotype.Service;
 @Service
 public class KafkaLinkCommandConsumer {
     private static final Logger LOGGER = LoggerFactory.getLogger(KafkaLinkCommandConsumer.class);
+    private static final String COMMAND_KEY = "command";
+    private static final String LINK_KEY = "link";
+    private static final String FILTERS_KEY = "filters";
+
     private final LinkService linkService;
     private final ChatLinkService chatLinkService;
-    private final ObjectMapper objectMapper;
+    private final MessageParserService messageParserService;
 
     @Autowired
     public KafkaLinkCommandConsumer(
-            LinkService linkService, ChatLinkService chatLinkService, ObjectMapper objectMapper) {
+            LinkService linkService, ChatLinkService chatLinkService, MessageParserService messageParserService) {
         this.linkService = linkService;
         this.chatLinkService = chatLinkService;
-        this.objectMapper = objectMapper;
+        this.messageParserService = messageParserService;
     }
 
     @KafkaListener(topics = "${app.kafka.topics.link-commands}", groupId = "scrapper-group")
@@ -33,25 +34,28 @@ public class KafkaLinkCommandConsumer {
         Long chatId = Long.valueOf(chatIdStr);
 
         try {
-            JsonNode jsonNode = objectMapper.readTree(message);
-            String command = jsonNode.get("command").asText();
-            String link = jsonNode.get("link").asText();
-            Map<String, String> filters = objectMapper.convertValue(jsonNode.get("filters"), new TypeReference<>() {});
+            Map<String, Object> data = messageParserService.parseMessage(message);
+            String command = (String) data.get(COMMAND_KEY);
+            String link = (String) data.get(LINK_KEY);
+            Map<String, String> filters = (Map<String, String>) data.get(FILTERS_KEY);
 
-            if ("add".equalsIgnoreCase(command)) {
-                LinkDTO linkDTO = linkService.add(link, "Added via Kafka");
-                chatLinkService.addLinkToChat(chatId, linkDTO.getLinkId(), filters); // Передаём фильтры
-                LOGGER.info("Added link {} for chat {}", link, chatId);
-            } else if ("remove".equalsIgnoreCase(command)) {
-                LinkDTO linkDTO = linkService.findByUrl(link);
-                if (linkDTO != null) {
-                    chatLinkService.removeLinkFromChat(chatId, linkDTO.getLinkId());
-                    LOGGER.info("Removed link {} for chat {}", link, chatId);
-                } else {
-                    LOGGER.warn("Link {} not found for removal in chat {}", link, chatId);
-                }
-            } else {
-                LOGGER.warn("Unknown command received: {}", command);
+            switch (command.toLowerCase()) {
+                case "add":
+                    LinkDTO linkDTO = linkService.add(link, "Added via Kafka");
+                    chatLinkService.addLinkToChat(chatId, linkDTO.getLinkId(), filters);
+                    LOGGER.info("Added link {} for chat {}", link, chatId);
+                    break;
+                case "remove":
+                    LinkDTO existingLink = linkService.findByUrl(link);
+                    if (existingLink != null) {
+                        chatLinkService.removeLinkFromChat(chatId, existingLink.getLinkId());
+                        LOGGER.info("Removed link {} for chat {}", link, chatId);
+                    } else {
+                        LOGGER.warn("Link {} not found for removal in chat {}", link, chatId);
+                    }
+                    break;
+                default:
+                    LOGGER.warn("Unknown command received: {}", command);
             }
         } catch (Exception e) {
             LOGGER.error("Failed to process Kafka message: {}", message, e);

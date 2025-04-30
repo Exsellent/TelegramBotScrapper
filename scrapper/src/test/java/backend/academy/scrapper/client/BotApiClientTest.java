@@ -1,6 +1,8 @@
 package backend.academy.scrapper.client;
 
-import static com.github.tomakehurst.wiremock.client.WireMock.*;
+import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
+import static com.github.tomakehurst.wiremock.client.WireMock.post;
+import static com.github.tomakehurst.wiremock.client.WireMock.urlEqualTo;
 
 import backend.academy.scrapper.dto.LinkUpdateRequest;
 import com.github.tomakehurst.wiremock.WireMockServer;
