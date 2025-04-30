@@ -2,99 +2,121 @@ package backend.academy.service;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.mockito.Mockito.eq;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import backend.academy.bot.command.ListCommand;
 import backend.academy.bot.dto.LinkResponse;
 import backend.academy.bot.service.KafkaMessageConsumer;
+import backend.academy.bot.service.RedisCacheService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.ConcurrentHashMap;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.springframework.data.redis.core.RedisTemplate;
-import org.springframework.data.redis.core.ValueOperations;
+import org.mockito.Mock;
 
 class KafkaMessageConsumerTest {
 
-    private RedisTemplate<String, List<LinkResponse>> redisTemplate;
-    private ValueOperations<String, List<LinkResponse>> valueOperations;
+    @Mock
+    private RedisCacheService redisCacheService;
+
+    @Mock
     private ListCommand listCommand;
+
+    @Mock
     private ObjectMapper objectMapper;
+
     private KafkaMessageConsumer consumer;
 
-    private final Long chatId = 123L;
+    private Map<Long, CompletableFuture<List<LinkResponse>>> pendingRequests;
+    private Long chatId;
 
     @BeforeEach
-    void setup() {
-        redisTemplate = mock(RedisTemplate.class);
-        valueOperations = mock(ValueOperations.class);
-        when(redisTemplate.opsForValue()).thenReturn(valueOperations);
-
+    void setUp() {
+        redisCacheService = mock(RedisCacheService.class);
         listCommand = mock(ListCommand.class);
-        objectMapper = new ObjectMapper();
+        objectMapper = mock(ObjectMapper.class);
 
-        consumer = new KafkaMessageConsumer(redisTemplate, listCommand, objectMapper);
+        chatId = 123L;
+        pendingRequests = new ConcurrentHashMap<>();
+        when(listCommand.getPendingRequests()).thenReturn(pendingRequests);
+
+        consumer = new KafkaMessageConsumer(redisCacheService, listCommand, objectMapper);
     }
 
     @Test
-    void testKafkaMessageProcessedCorrectly() throws Exception {
-        // Подготовка
+    void testListenWithListCommand() throws Exception {
+        String message = "{\"command\": \"list\"}";
+        ConsumerRecord<String, String> record = new ConsumerRecord<>("link-commands", 0, 0, chatId.toString(), message);
         CompletableFuture<List<LinkResponse>> future = new CompletableFuture<>();
-        Map<Long, CompletableFuture<List<LinkResponse>>> pendingRequests = new HashMap<>();
         pendingRequests.put(chatId, future);
 
-        when(listCommand.getPendingRequests()).thenReturn(pendingRequests);
+        when(objectMapper.readValue(message, Map.class)).thenReturn(Map.of("command", "list"));
 
-        String json = """
-                {
-                  "command": "list"
-                }
-                """;
-
-        ConsumerRecord<String, String> record = new ConsumerRecord<>("topic", 0, 0L, chatId.toString(), json);
-
-        // Создание consumer вручную (с нужными pendingRequests)
-        consumer = new KafkaMessageConsumer(redisTemplate, listCommand, objectMapper);
-
-        // Акт
         consumer.listen(record);
 
-        // Проверка записи в Redis
-        verify(redisTemplate.opsForValue(), times(1))
-                .set(eq("tracked-links:" + chatId), eq(Collections.emptyList()), eq(10L), eq(TimeUnit.MINUTES));
-
-        // Проверка завершения CompletableFuture
+        verify(redisCacheService).setLinks(eq(chatId), eq(Collections.emptyList()));
         assertTrue(future.isDone());
         assertEquals(Collections.emptyList(), future.get());
+        assertTrue(pendingRequests.isEmpty());
     }
 
     @Test
-    void testInvalidJsonHandledGracefully() {
+    void testListenWithAddCommand() throws Exception {
+        String message = "{\"command\": \"add\", \"link\": \"https://example.com\"}";
+        ConsumerRecord<String, String> record = new ConsumerRecord<>("link-commands", 0, 0, chatId.toString(), message);
         CompletableFuture<List<LinkResponse>> future = new CompletableFuture<>();
-        Map<Long, CompletableFuture<List<LinkResponse>>> pendingRequests = new HashMap<>();
         pendingRequests.put(chatId, future);
 
-        when(listCommand.getPendingRequests()).thenReturn(pendingRequests);
-
-        String invalidJson = "{ this is not valid json }";
-        ConsumerRecord<String, String> record = new ConsumerRecord<>("topic", 0, 0L, chatId.toString(), invalidJson);
-
-        consumer = new KafkaMessageConsumer(redisTemplate, listCommand, objectMapper);
+        when(objectMapper.readValue(message, Map.class))
+                .thenReturn(Map.of("command", "add", "link", "https://example.com"));
 
         consumer.listen(record);
 
-        // смотрим, что при ошибке парсинга всё равно завершается пустым списком
+        verify(redisCacheService).setLinks(eq(chatId), eq(Collections.emptyList()));
         assertTrue(future.isDone());
-        assertEquals(Collections.emptyList(), future.join());
+        assertEquals(Collections.emptyList(), future.get());
+        assertTrue(pendingRequests.isEmpty());
+    }
+
+    @Test
+    void testListenWithInvalidJson() throws Exception {
+        String message = "not a json";
+        ConsumerRecord<String, String> record = new ConsumerRecord<>("link-commands", 0, 0, chatId.toString(), message);
+        CompletableFuture<List<LinkResponse>> future = new CompletableFuture<>();
+        pendingRequests.put(chatId, future);
+
+        when(objectMapper.readValue(message, Map.class)).thenThrow(new RuntimeException("Invalid JSON"));
+
+        consumer.listen(record);
+
+        verify(redisCacheService).setLinks(eq(chatId), eq(Collections.emptyList()));
+        assertTrue(future.isDone());
+        assertEquals(Collections.emptyList(), future.get());
+        assertTrue(pendingRequests.isEmpty());
+    }
+
+    @Test
+    void testListenWithUnknownCommand() throws Exception {
+        String message = "{\"command\": \"ping\"}";
+        ConsumerRecord<String, String> record = new ConsumerRecord<>("link-commands", 0, 0, chatId.toString(), message);
+        CompletableFuture<List<LinkResponse>> future = new CompletableFuture<>();
+        pendingRequests.put(chatId, future);
+
+        when(objectMapper.readValue(message, Map.class)).thenReturn(Map.of("command", "ping"));
+
+        consumer.listen(record);
+
+        verify(redisCacheService).setLinks(eq(chatId), eq(Collections.emptyList()));
+        assertTrue(future.isDone());
+        assertEquals(Collections.emptyList(), future.get());
+        assertTrue(pendingRequests.isEmpty());
     }
 }

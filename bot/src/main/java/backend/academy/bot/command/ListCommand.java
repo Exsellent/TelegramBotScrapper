@@ -24,10 +24,6 @@ public class ListCommand implements Command {
     private final RedisCacheService redisCacheService;
     private final Map<Long, CompletableFuture<List<LinkResponse>>> pendingRequests = new ConcurrentHashMap<>();
 
-    public Map<Long, CompletableFuture<List<LinkResponse>>> getPendingRequests() {
-        return pendingRequests;
-    }
-
     @Autowired
     public ListCommand(KafkaService kafkaService, RedisCacheService redisCacheService) {
         this.kafkaService = kafkaService;
@@ -56,7 +52,7 @@ public class ListCommand implements Command {
             return buildResponse(chatId, cachedLinks);
         }
 
-        // CompletableFuture для ожидания ответа
+        // Создаём CompletableFuture для ожидания ответа
         CompletableFuture<List<LinkResponse>> future = new CompletableFuture<>();
         pendingRequests.put(chatId, future);
 
@@ -69,12 +65,12 @@ public class ListCommand implements Command {
             return buildResponse(chatId, links != null ? links : Collections.emptyList());
         } catch (TimeoutException e) {
             LOGGER.error("Timeout waiting for list response for chat {}", chatId);
+            pendingRequests.remove(chatId); // Удаляем только при таймауте
             return new SendMessage(chatId, "Timeout while fetching links.");
         } catch (Exception e) {
             LOGGER.error("Error handling /list command", e);
+            pendingRequests.remove(chatId); // Удаляем при других ошибках
             return new SendMessage(chatId, "An error occurred while fetching links.");
-        } finally {
-            pendingRequests.remove(chatId);
         }
     }
 
@@ -88,5 +84,9 @@ public class ListCommand implements Command {
         }
         redisCacheService.setLinks(chatId, links);
         return new SendMessage(chatId, messageBuilder.toString());
+    }
+
+    public Map<Long, CompletableFuture<List<LinkResponse>>> getPendingRequests() {
+        return pendingRequests;
     }
 }
