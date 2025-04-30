@@ -1,40 +1,33 @@
 package backend.academy.bot.command;
 
 import backend.academy.bot.dto.LinkResponse;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import backend.academy.bot.service.KafkaService;
+import backend.academy.bot.service.RedisCacheService;
 import com.pengrad.telegrambot.model.Update;
 import com.pengrad.telegrambot.request.SendMessage;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.data.redis.core.RedisTemplate;
-import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Component;
 
 @Component
 public class ListCommand implements Command {
-
     private static final Logger LOGGER = LoggerFactory.getLogger(ListCommand.class);
-    private final KafkaTemplate<String, String> kafkaTemplate;
-    private final RedisTemplate<String, List<LinkResponse>> redisTemplate;
-    private final ObjectMapper objectMapper;
-    private final String linkCommandsTopic;
+    private final KafkaService kafkaService;
+    private final RedisCacheService redisCacheService;
+    private final Map<Long, CompletableFuture<List<LinkResponse>>> pendingRequests = new ConcurrentHashMap<>();
 
     @Autowired
-    public ListCommand(
-            KafkaTemplate<String, String> kafkaTemplate,
-            RedisTemplate<String, List<LinkResponse>> redisTemplate,
-            ObjectMapper objectMapper,
-            @Value("${app.kafka.topics.link-commands}") String linkCommandsTopic) {
-        this.kafkaTemplate = kafkaTemplate;
-        this.redisTemplate = redisTemplate;
-        this.objectMapper = objectMapper;
-        this.linkCommandsTopic = linkCommandsTopic;
+    public ListCommand(KafkaService kafkaService, RedisCacheService redisCacheService) {
+        this.kafkaService = kafkaService;
+        this.redisCacheService = redisCacheService;
     }
 
     @Override
@@ -51,25 +44,32 @@ public class ListCommand implements Command {
     public SendMessage handle(Update update) {
         Long chatId = update.message().chat().id();
         LOGGER.info("Handling /list command for chat {}", chatId);
-        String cacheKey = "tracked-links:" + chatId;
+
+        // Проверяем кэш
+        List<LinkResponse> cachedLinks = redisCacheService.getLinks(chatId);
+        if (cachedLinks != null && !cachedLinks.isEmpty()) {
+            LOGGER.info("Returning cached links for chat {}", chatId);
+            return buildResponse(chatId, cachedLinks);
+        }
+
+        // Создаём CompletableFuture для ожидания ответа
+        CompletableFuture<List<LinkResponse>> future = new CompletableFuture<>();
+        pendingRequests.put(chatId, future);
 
         try {
-            // Проверяем кэш
-            List<LinkResponse> cachedLinks = redisTemplate.opsForValue().get(cacheKey);
-            if (cachedLinks != null && !cachedLinks.isEmpty()) {
-                LOGGER.info("Returning cached links for chat {}", chatId);
-                return buildResponse(chatId, cachedLinks);
-            }
-
             // Отправляем запрос в Kafka
-            String json = objectMapper.writeValueAsString(Map.of("command", "list"));
-            kafkaTemplate.send(linkCommandsTopic, String.valueOf(chatId), json);
+            kafkaService.sendCommand(chatId, "list", Collections.emptyMap());
 
-            Thread.sleep(1000);
-            List<LinkResponse> links = redisTemplate.opsForValue().get(cacheKey);
+            // Ожидаем ответа с таймаутом
+            List<LinkResponse> links = future.get(5, TimeUnit.SECONDS);
             return buildResponse(chatId, links != null ? links : Collections.emptyList());
+        } catch (TimeoutException e) {
+            LOGGER.error("Timeout waiting for list response for chat {}", chatId);
+            pendingRequests.remove(chatId); // Удаляем только при таймауте
+            return new SendMessage(chatId, "Timeout while fetching links.");
         } catch (Exception e) {
             LOGGER.error("Error handling /list command", e);
+            pendingRequests.remove(chatId); // Удаляем при других ошибках
             return new SendMessage(chatId, "An error occurred while fetching links.");
         }
     }
@@ -82,7 +82,11 @@ public class ListCommand implements Command {
         for (LinkResponse link : links) {
             messageBuilder.append(link.getUrl()).append("\n");
         }
-        redisTemplate.opsForValue().set("tracked-links:" + chatId, links, 10, TimeUnit.MINUTES);
+        redisCacheService.setLinks(chatId, links);
         return new SendMessage(chatId, messageBuilder.toString());
+    }
+
+    public Map<Long, CompletableFuture<List<LinkResponse>>> getPendingRequests() {
+        return pendingRequests;
     }
 }

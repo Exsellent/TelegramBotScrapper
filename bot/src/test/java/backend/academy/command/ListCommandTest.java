@@ -2,105 +2,67 @@ package backend.academy.command;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import backend.academy.bot.command.ListCommand;
 import backend.academy.bot.dto.LinkResponse;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import backend.academy.bot.service.KafkaService;
+import backend.academy.bot.service.RedisCacheService;
 import com.pengrad.telegrambot.model.Chat;
 import com.pengrad.telegrambot.model.Message;
 import com.pengrad.telegrambot.model.Update;
 import com.pengrad.telegrambot.request.SendMessage;
-import java.time.Duration;
 import java.util.Collections;
 import java.util.List;
-import java.util.Map;
-import org.apache.kafka.clients.producer.ProducerConfig;
-import org.apache.kafka.common.serialization.StringSerializer;
-import org.junit.jupiter.api.BeforeAll;
+import java.util.concurrent.CompletableFuture;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.springframework.data.redis.connection.RedisStandaloneConfiguration;
-import org.springframework.data.redis.connection.lettuce.LettuceConnectionFactory;
-import org.springframework.data.redis.core.RedisTemplate;
-import org.springframework.data.redis.serializer.Jackson2JsonRedisSerializer;
-import org.springframework.data.redis.serializer.StringRedisSerializer;
-import org.springframework.kafka.core.DefaultKafkaProducerFactory;
-import org.springframework.kafka.core.KafkaTemplate;
-import org.testcontainers.containers.GenericContainer;
-import org.testcontainers.containers.KafkaContainer;
-import org.testcontainers.junit.jupiter.Container;
-import org.testcontainers.junit.jupiter.Testcontainers;
-import org.testcontainers.utility.DockerImageName;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.MockitoAnnotations;
 
-@Testcontainers
 class ListCommandTest {
 
-    @Container
-    private static final GenericContainer<?> zookeeperContainer = new GenericContainer<>(
-                    DockerImageName.parse("confluentinc/cp-zookeeper:7.2.1"))
-            .withExposedPorts(2181)
-            .withEnv("ZOOKEEPER_CLIENT_PORT", "2181")
-            .withEnv("ZOOKEEPER_TICK_TIME", "2000");
+    @Mock
+    private KafkaService kafkaService;
 
-    @Container
-    private static final KafkaContainer kafkaContainer = new KafkaContainer(
-                    DockerImageName.parse("confluentinc/cp-kafka:7.2.1"))
-            .withStartupTimeout(Duration.ofMinutes(3));
+    @Mock
+    private RedisCacheService redisCacheService;
 
-    @Container
-    private static final GenericContainer<?> redisContainer =
-            new GenericContainer<>(DockerImageName.parse("redis:7.0")).withExposedPorts(6379);
-
+    @InjectMocks
     private ListCommand command;
-    private KafkaTemplate<String, String> kafkaTemplate;
-    private RedisTemplate<String, List<LinkResponse>> redisTemplate;
-    private ObjectMapper objectMapper;
 
-    @BeforeAll
-    static void startContainers() {
-        zookeeperContainer.start();
-        kafkaContainer.start();
-        redisContainer.start();
-    }
+    private Long chatId;
+    private Update update;
 
     @BeforeEach
     void setup() {
-        // Настройка Kafka
-        Map<String, Object> producerProps = Map.of(
-                ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, kafkaContainer.getBootstrapServers(),
-                ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSerializer.class,
-                ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, StringSerializer.class);
-        kafkaTemplate = new KafkaTemplate<>(new DefaultKafkaProducerFactory<>(producerProps));
-
-        // Настройка Redis
-        RedisStandaloneConfiguration redisConfig = new RedisStandaloneConfiguration();
-        redisConfig.setHostName(redisContainer.getHost());
-        redisConfig.setPort(redisContainer.getFirstMappedPort());
-        LettuceConnectionFactory connectionFactory = new LettuceConnectionFactory(redisConfig);
-        connectionFactory.afterPropertiesSet();
-
-        redisTemplate = new RedisTemplate<>();
-        redisTemplate.setConnectionFactory(connectionFactory);
-        redisTemplate.setKeySerializer(new StringRedisSerializer());
-
-        // Настройка сериализатора для List<LinkResponse>
-        objectMapper = new ObjectMapper();
-        Jackson2JsonRedisSerializer<List<LinkResponse>> serializer = new Jackson2JsonRedisSerializer<>(
-                objectMapper.getTypeFactory().constructCollectionType(List.class, LinkResponse.class));
-        redisTemplate.setValueSerializer(serializer);
-        redisTemplate.afterPropertiesSet();
-
-        command = new ListCommand(kafkaTemplate, redisTemplate, objectMapper, "link-commands");
+        MockitoAnnotations.openMocks(this);
+        chatId = 123L;
+        update = createUpdate(chatId, "/list");
     }
 
     @Test
-    void testListCommandWithEmptyCacheAndEmptyLinks() throws InterruptedException {
-        Update update = createUpdate(123L, "/list");
+    void testListCommandWithEmptyCacheAndEmptyLinks() {
+        // Мокаем пустой кэш
+        when(redisCacheService.getLinks(chatId)).thenReturn(null);
 
-        // Пустой кэш
-        assert redisTemplate.opsForValue().get("tracked-links:123") == null;
+        // Мокаем ответ от Kafka (пустой список)
+        doAnswer(invocation -> {
+                    CompletableFuture<List<LinkResponse>> future =
+                            command.getPendingRequests().get(chatId);
+                    if (future != null) {
+                        future.complete(Collections.emptyList());
+                    }
+                    return null;
+                })
+                .when(kafkaService)
+                .sendCommand(eq(chatId), eq("list"), any());
 
         SendMessage response = command.handle(update);
         String text = (String) response.getParameters().get("text");
@@ -110,13 +72,24 @@ class ListCommandTest {
     }
 
     @Test
-    void testListCommandWithEmptyCacheAndNonEmptyLinks() throws InterruptedException {
-        Update update = createUpdate(123L, "/list");
-        LinkResponse link = new LinkResponse(1L, "https://example.com", "Description");
+    void testListCommandWithEmptyCacheAndNonEmptyLinks() {
+        // Мокаем пустой кэш
+        when(redisCacheService.getLinks(chatId)).thenReturn(null);
+
+        // Мокаем ответ от Kafka (список с одной ссылкой)
+        LinkResponse link = new LinkResponse(1L, "https://example.com", "Example link");
         List<LinkResponse> links = Collections.singletonList(link);
 
-        // Симулируем ответ Kafka
-        redisTemplate.opsForValue().set("tracked-links:123", links);
+        doAnswer(invocation -> {
+                    CompletableFuture<List<LinkResponse>> future =
+                            command.getPendingRequests().get(chatId);
+                    if (future != null) {
+                        future.complete(links);
+                    }
+                    return null;
+                })
+                .when(kafkaService)
+                .sendCommand(eq(chatId), eq("list"), any());
 
         SendMessage response = command.handle(update);
         String text = (String) response.getParameters().get("text");
@@ -127,17 +100,58 @@ class ListCommandTest {
 
     @Test
     void testListCommandWithCachedLinks() {
-        Update update = createUpdate(123L, "/list");
-        LinkResponse link = new LinkResponse(1L, "https://example.com", "Description");
+        // Мокаем кэшированные ссылки
+        LinkResponse link = new LinkResponse(1L, "https://example.com", "Example link");
         List<LinkResponse> cachedLinks = Collections.singletonList(link);
-
-        redisTemplate.opsForValue().set("tracked-links:123", cachedLinks);
+        when(redisCacheService.getLinks(chatId)).thenReturn(cachedLinks);
 
         SendMessage response = command.handle(update);
         String text = (String) response.getParameters().get("text");
 
         assertNotNull(response);
         assertEquals("Tracked links:\nhttps://example.com\n", text);
+    }
+
+    @Test
+    void testListCommandWithKafkaTimeout() {
+        // Мокаем пустой кэш
+        when(redisCacheService.getLinks(chatId)).thenReturn(null);
+
+        // Мокаем Kafka, который не отвечает (не завершает CompletableFuture)
+        doAnswer(invocation -> null).when(kafkaService).sendCommand(eq(chatId), eq("list"), any());
+
+        SendMessage response = command.handle(update);
+        String text = (String) response.getParameters().get("text");
+
+        assertNotNull(response);
+        assertEquals("Timeout while fetching links.", text);
+    }
+
+    @Test
+    void testListCommandWithKafkaResponse() {
+        // Мокаем пустой кэш
+        when(redisCacheService.getLinks(chatId)).thenReturn(null);
+
+        // Мокаем ответ от Kafka
+        LinkResponse link = new LinkResponse(1L, "https://example.com", "Example link");
+        List<LinkResponse> links = Collections.singletonList(link);
+
+        doAnswer(invocation -> {
+                    CompletableFuture<List<LinkResponse>> future =
+                            command.getPendingRequests().get(chatId);
+                    if (future != null) {
+                        future.complete(links);
+                    }
+                    return null;
+                })
+                .when(kafkaService)
+                .sendCommand(eq(chatId), eq("list"), any());
+
+        SendMessage response = command.handle(update);
+        String text = (String) response.getParameters().get("text");
+
+        assertNotNull(response);
+        assertTrue(text.contains("https://example.com"));
     }
 
     private Update createUpdate(Long chatId, String text) {

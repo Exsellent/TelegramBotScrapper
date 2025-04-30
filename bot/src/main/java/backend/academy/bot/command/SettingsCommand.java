@@ -1,18 +1,20 @@
 package backend.academy.bot.command;
 
+import backend.academy.bot.service.RedisCacheService;
 import com.pengrad.telegrambot.model.Update;
 import com.pengrad.telegrambot.request.SendMessage;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Component;
 
 @Component
 public class SettingsCommand implements Command {
-    private final RedisTemplate<String, String> redisTemplate;
+    private static final int EXPECTED_PARTS_COUNT = 2;
+    private static final int MODE_INDEX = 1;
+    private final RedisCacheService redisCacheService;
 
     @Autowired
-    public SettingsCommand(RedisTemplate<String, String> redisTemplate) {
-        this.redisTemplate = redisTemplate;
+    public SettingsCommand(RedisCacheService redisCacheService) {
+        this.redisCacheService = redisCacheService;
     }
 
     @Override
@@ -28,14 +30,15 @@ public class SettingsCommand implements Command {
     @Override
     public SendMessage handle(Update update) {
         Long chatId = update.message().chat().id();
-        String[] parts = update.message().text().split(" ", 2);
+        String[] parts = update.message().text().split(" ", EXPECTED_PARTS_COUNT);
 
-        if (parts.length < 2 || (!parts[1].equals("instant") && !parts[1].equals("digest"))) {
+        if (parts.length < EXPECTED_PARTS_COUNT
+                || (!parts[MODE_INDEX].equals("instant") && !parts[MODE_INDEX].equals("digest"))) {
             return new SendMessage(chatId, "Usage: /settings [instant|digest]");
         }
 
-        String mode = parts[1];
-        redisTemplate.opsForValue().set("notification-mode:" + chatId, mode);
+        String mode = parts[MODE_INDEX];
+        redisCacheService.setNotificationMode(chatId, mode);
         return new SendMessage(chatId, "Notification mode set to: " + mode);
     }
 }
