@@ -3,116 +3,95 @@ package backend.academy.command;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import backend.academy.bot.command.ConversationManager;
 import backend.academy.bot.command.ConversationState;
 import backend.academy.bot.command.TrackCommand;
-import backend.academy.bot.dto.LinkResponse;
 import backend.academy.bot.exception.InvalidLinkException;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import backend.academy.bot.service.KafkaService;
+import backend.academy.bot.service.RedisCacheService;
 import com.pengrad.telegrambot.model.Chat;
 import com.pengrad.telegrambot.model.Message;
 import com.pengrad.telegrambot.model.Update;
 import com.pengrad.telegrambot.request.SendMessage;
-import java.util.List;
-import java.util.Map;
-import org.apache.kafka.clients.consumer.ConsumerConfig;
-import org.apache.kafka.clients.consumer.KafkaConsumer;
-import org.apache.kafka.clients.producer.ProducerConfig;
-import org.apache.kafka.common.serialization.StringDeserializer;
-import org.apache.kafka.common.serialization.StringSerializer;
-import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.springframework.data.redis.core.RedisTemplate;
-import org.springframework.kafka.core.DefaultKafkaProducerFactory;
-import org.springframework.kafka.core.KafkaTemplate;
-import org.testcontainers.containers.GenericContainer;
-import org.testcontainers.containers.KafkaContainer;
-import org.testcontainers.junit.jupiter.Container;
-import org.testcontainers.junit.jupiter.Testcontainers;
-import org.testcontainers.utility.DockerImageName;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.MockitoAnnotations;
 
-@Testcontainers
 class TrackCommandTest {
 
-    @Container
-    private static final KafkaContainer kafkaContainer =
-            new KafkaContainer(DockerImageName.parse("confluentinc/cp-kafka:7.6.0"));
-
-    @Container
-    private static final GenericContainer<?> redisContainer =
-            new GenericContainer<>(DockerImageName.parse("redis:7.0")).withExposedPorts(6379);
-
-    private TrackCommand command;
-    private KafkaTemplate<String, String> kafkaTemplate;
-    private RedisTemplate<String, List<LinkResponse>> redisTemplate;
+    @Mock
     private ConversationManager conversationManager;
-    private ObjectMapper objectMapper;
 
-    @BeforeAll
-    static void startContainers() {
-        kafkaContainer.start();
-        redisContainer.start();
-    }
+    @Mock
+    private KafkaService kafkaService;
+
+    @Mock
+    private RedisCacheService redisCacheService;
+
+    @InjectMocks
+    private TrackCommand command;
+
+    private Long chatId;
 
     @BeforeEach
     void setup() {
-        // Настройка Kafka
-        Map<String, Object> producerProps = Map.of(
-                ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, kafkaContainer.getBootstrapServers(),
-                ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSerializer.class,
-                ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, StringSerializer.class);
-        DefaultKafkaProducerFactory<String, String> producerFactory = new DefaultKafkaProducerFactory<>(producerProps);
-        kafkaTemplate = new KafkaTemplate<>(producerFactory);
-
-        // Настройка Redis
-        redisTemplate = mock(RedisTemplate.class);
-
-        conversationManager = new ConversationManager();
-        objectMapper = new ObjectMapper();
-
-        command = new TrackCommand(conversationManager, kafkaTemplate, redisTemplate, objectMapper, "link-commands");
+        MockitoAnnotations.openMocks(this);
+        chatId = 123L;
+        when(conversationManager.getUserState(chatId)).thenReturn(ConversationState.IDLE);
+        when(conversationManager.getTrackingData(chatId)).thenReturn(new ConversationManager.TrackingData());
     }
 
     @Test
     void testTrackCommandStart() {
-        Update update = createUpdate(123L, "/track");
+        Update update = createUpdate(chatId, "/track");
         SendMessage response = command.handle(update);
         assertNotNull(response);
         assertEquals(
                 "Please enter the URL you want to track:",
                 response.getParameters().get("text"));
+        verify(conversationManager).setUserState(chatId, ConversationState.AWAITING_URL);
     }
 
     @Test
     void testTrackCommandInvalidUrl() {
-        Long chatId = 123L;
-        conversationManager.setUserState(chatId, ConversationState.AWAITING_URL);
+        when(conversationManager.getUserState(chatId)).thenReturn(ConversationState.AWAITING_URL);
         Update update = createUpdate(chatId, "invalid-url");
 
         assertThrows(InvalidLinkException.class, () -> command.handle(update));
     }
 
     @Test
-    void testTrackCommandSuccess() throws Exception {
-        Long chatId = 123L;
+    void testTrackCommandSuccess() {
+        ConversationManager.TrackingData data = new ConversationManager.TrackingData();
+        when(conversationManager.getTrackingData(chatId)).thenReturn(data);
 
         // Шаг 1: Начало
         Update startUpdate = createUpdate(chatId, "/track");
         command.handle(startUpdate);
+        verify(conversationManager).setUserState(chatId, ConversationState.AWAITING_URL);
 
         // Шаг 2: URL
+        when(conversationManager.getUserState(chatId)).thenReturn(ConversationState.AWAITING_URL);
         Update urlUpdate = createUpdate(chatId, "https://example.com");
         command.handle(urlUpdate);
+        verify(conversationManager).setUserState(chatId, ConversationState.AWAITING_TAGS);
 
         // Шаг 3: Теги
+        when(conversationManager.getUserState(chatId)).thenReturn(ConversationState.AWAITING_TAGS);
         Update tagsUpdate = createUpdate(chatId, "tag1 tag2");
         command.handle(tagsUpdate);
+        verify(conversationManager).setUserState(chatId, ConversationState.AWAITING_FILTERS);
 
         // Шаг 4: Фильтры
+        when(conversationManager.getUserState(chatId)).thenReturn(ConversationState.AWAITING_FILTERS);
         Update filtersUpdate = createUpdate(chatId, "user:john type:comment");
         SendMessage response = command.handle(filtersUpdate);
 
@@ -120,9 +99,42 @@ class TrackCommandTest {
         assertEquals(
                 "Link tracking request sent successfully!",
                 response.getParameters().get("text"));
+        verify(kafkaService).sendCommand(eq(chatId), eq("add"), any());
+        verify(redisCacheService).deleteLinks(chatId);
+        verify(conversationManager).setUserState(chatId, ConversationState.IDLE);
+        verify(conversationManager).clearTrackingData(chatId);
+    }
 
-        // Проверка кэша (упрощённо, нужно подключить реальный Redis)
-        // assertNull(redisTemplate.opsForValue().get("tracked-links:" + chatId));
+    @Test
+    void testTrackCommandSkipTagsAndFilters() {
+        ConversationManager.TrackingData data = new ConversationManager.TrackingData();
+        when(conversationManager.getTrackingData(chatId)).thenReturn(data);
+
+        // Шаг 1: Начало
+        Update startUpdate = createUpdate(chatId, "/track");
+        command.handle(startUpdate);
+
+        // Шаг 2: URL
+        when(conversationManager.getUserState(chatId)).thenReturn(ConversationState.AWAITING_URL);
+        Update urlUpdate = createUpdate(chatId, "https://example.com");
+        command.handle(urlUpdate);
+
+        // Шаг 3: Пропуск тегов
+        when(conversationManager.getUserState(chatId)).thenReturn(ConversationState.AWAITING_TAGS);
+        Update tagsUpdate = createUpdate(chatId, "skip");
+        command.handle(tagsUpdate);
+
+        // Шаг 4: Пропуск фильтров
+        when(conversationManager.getUserState(chatId)).thenReturn(ConversationState.AWAITING_FILTERS);
+        Update filtersUpdate = createUpdate(chatId, "skip");
+        SendMessage response = command.handle(filtersUpdate);
+
+        assertNotNull(response);
+        assertEquals(
+                "Link tracking request sent successfully!",
+                response.getParameters().get("text"));
+        verify(kafkaService).sendCommand(eq(chatId), eq("add"), any());
+        verify(redisCacheService).deleteLinks(chatId);
     }
 
     private Update createUpdate(Long chatId, String text) {
@@ -136,25 +148,5 @@ class TrackCommandTest {
         when(message.text()).thenReturn(text);
 
         return update;
-    }
-    // Для проверки DLQ
-    @Test
-    void testInvalidMessageGoesToDlq() throws Exception {
-        Map<String, Object> consumerProps = Map.of(
-                ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG,
-                kafkaContainer.getBootstrapServers(),
-                ConsumerConfig.GROUP_ID_CONFIG,
-                "test-group",
-                ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG,
-                StringDeserializer.class,
-                ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG,
-                StringDeserializer.class);
-        KafkaConsumer<String, String> consumer = new KafkaConsumer<>(consumerProps);
-        consumer.subscribe(List.of("link-commands-dlq"));
-
-        // Симулируем невалидный URL
-        Long chatId = 123L;
-        conversationManager.setUserState(chatId, ConversationState.AWAITING_URL);
-        assertThrows(InvalidLinkException.class, () -> command.handle(createUpdate(chatId, "invalid-url")));
     }
 }
