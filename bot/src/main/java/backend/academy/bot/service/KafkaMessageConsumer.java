@@ -31,7 +31,7 @@ public class KafkaMessageConsumer {
         this.objectMapper = objectMapper;
     }
 
-    @KafkaListener(topics = "${app.kafka.topics.link-commands}", groupId = "bot-group")
+    @KafkaListener(topics = "${app.kafka.topics.link-commands}")
     public void listen(ConsumerRecord<String, String> record) {
         Long chatId = Long.valueOf(record.key());
         String message = record.value();
