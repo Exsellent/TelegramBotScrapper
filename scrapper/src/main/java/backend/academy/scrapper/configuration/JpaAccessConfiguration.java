@@ -1,6 +1,5 @@
 package backend.academy.scrapper.configuration;
 
-import backend.academy.scrapper.client.BotApiClient;
 import backend.academy.scrapper.client.github.GitHubClient;
 import backend.academy.scrapper.client.stackoverflow.StackOverflowClient;
 import backend.academy.scrapper.dao.LinkDao;
@@ -14,7 +13,9 @@ import backend.academy.scrapper.service.ChatLinkService;
 import backend.academy.scrapper.service.ChatService;
 import backend.academy.scrapper.service.GitHubService;
 import backend.academy.scrapper.service.LinkService;
+import backend.academy.scrapper.service.NotificationService;
 import backend.academy.scrapper.service.StackOverflowService;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
@@ -35,8 +36,9 @@ public class JpaAccessConfiguration {
     }
 
     @Bean
-    public ChatLinkService chatLinkService(ChatLinkRepository chatLinkRepository, ChatRepository chatRepository) {
-        return new JpaChatLinkService(chatLinkRepository, chatRepository);
+    public ChatLinkService chatLinkService(
+            ChatLinkRepository chatLinkRepository, ChatRepository chatRepository, ObjectMapper objectMapper) {
+        return new JpaChatLinkService(chatLinkRepository, chatRepository, objectMapper);
     }
 
     @Bean
@@ -55,9 +57,14 @@ public class JpaAccessConfiguration {
             ChatLinkService chatLinkService,
             GitHubService gitHubService,
             StackOverflowService stackOverflowService,
-            BotApiClient botApiClient,
+            NotificationService notificationService,
             @Value("${app.check-interval-minutes}") int checkIntervalMinutes) {
         return new LinkUpdaterScheduler(
-                linkService, chatLinkService, gitHubService, stackOverflowService, botApiClient, checkIntervalMinutes);
+                linkService,
+                chatLinkService,
+                gitHubService,
+                stackOverflowService,
+                notificationService,
+                checkIntervalMinutes);
     }
 }

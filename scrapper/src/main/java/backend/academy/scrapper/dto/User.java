@@ -7,29 +7,43 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
+/** Универсальное представление пользователя для GitHub и StackOverflow. */
 @Getter
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class User {
-    @JsonProperty("id") // Для GitHub
+
+    /** GitHub: ID пользователя */
+    @JsonProperty("id")
     private Long id;
 
-    private String login; // Для GitHub
+    /** GitHub: логин */
+    private String login;
 
-    @JsonProperty("user_id") // Для StackOverflow
+    /** StackOverflow: ID пользователя */
+    @JsonProperty("user_id")
     private Long userId;
 
+    /** StackOverflow: отображаемое имя */
     @JsonProperty("display_name")
-    private String displayName; // Для StackOverflow
+    private String displayName;
 
-    // Метод для получения имени пользователя в зависимости от источника
+    /**
+     * Возвращает имя пользователя: login (GitHub) или displayName (StackOverflow).
+     *
+     * @return логин или имя пользователя
+     */
     public String getName() {
         return login != null ? login : displayName;
     }
 
-    // Метод для получения ID в зависимости от источника
+    /**
+     * Возвращает ID пользователя: id (GitHub) или userId (StackOverflow).
+     *
+     * @return ID пользователя
+     */
     public Long getId() {
         return id != null ? id : userId;
     }

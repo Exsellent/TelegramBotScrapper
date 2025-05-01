@@ -38,8 +38,10 @@ public class BackOffConfig {
     @Bean
     @ConditionalOnProperty(name = "backoff.strategy", havingValue = "exponential")
     public BackOffStrategy exponentialBackOffStrategy() {
-        return new ExponentialBackOff(
-                backOffProperties.getSettings().getInitialDelay(),
-                backOffProperties.getSettings().getMultiplier());
+        BackoffSettings settings = backOffProperties.getSettings();
+        if (settings == null) {
+            return new ExponentialBackOff(1000L, 2.0); // Значения по умолчанию
+        }
+        return new ExponentialBackOff(settings.getInitialDelay(), settings.getMultiplier());
     }
 }

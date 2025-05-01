@@ -9,7 +9,7 @@ import org.springframework.context.annotation.Configuration;
 @Getter
 @Setter
 @Configuration
-@ConfigurationProperties(prefix = "backoff")
+@ConfigurationProperties(prefix = "app.backoff")
 public class BackOffProperties {
     private BackoffSettings settings;
     private List<Integer> retryableStatusCodes;

@@ -1,8 +1,15 @@
-package backend.academy.scrapper.client.stackoverflow;
+package backend.academy.scrapper.client.client.stackoverflow;
 
-import static com.github.tomakehurst.wiremock.client.WireMock.*;
+import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
+import static com.github.tomakehurst.wiremock.client.WireMock.configureFor;
+import static com.github.tomakehurst.wiremock.client.WireMock.equalTo;
+import static com.github.tomakehurst.wiremock.client.WireMock.get;
+import static com.github.tomakehurst.wiremock.client.WireMock.urlPathEqualTo;
+import static com.github.tomakehurst.wiremock.client.WireMock.urlPathMatching;
 import static com.github.tomakehurst.wiremock.core.WireMockConfiguration.wireMockConfig;
 
+import backend.academy.scrapper.client.stackoverflow.StackOverflowClient;
+import backend.academy.scrapper.client.stackoverflow.StackOverflowClientImpl;
 import backend.academy.scrapper.dto.AnswerResponse;
 import backend.academy.scrapper.dto.QuestionResponse;
 import com.github.tomakehurst.wiremock.WireMockServer;

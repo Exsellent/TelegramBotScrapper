@@ -1,18 +1,18 @@
 package backend.academy.command;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyLong;
-import static org.mockito.Mockito.doNothing;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import backend.academy.bot.client.ScrapperApiClient;
 import backend.academy.bot.command.UntrackCommand;
-import backend.academy.bot.dto.RemoveLinkRequest;
-import backend.academy.bot.exception.ChatNotFoundException;
-import backend.academy.bot.exception.LinkNotFoundException;
+import backend.academy.bot.service.KafkaService;
+import backend.academy.bot.service.RedisCacheService;
 import com.pengrad.telegrambot.model.Chat;
 import com.pengrad.telegrambot.model.Message;
 import com.pengrad.telegrambot.model.Update;
@@ -26,80 +26,76 @@ import org.mockito.MockitoAnnotations;
 class UntrackCommandTest {
 
     @Mock
-    private ScrapperApiClient scrapperApiClient;
+    private KafkaService kafkaService;
+
+    @Mock
+    private RedisCacheService redisCacheService;
 
     @InjectMocks
     private UntrackCommand command;
 
+    private Long chatId;
+    private Update update;
+
     @BeforeEach
     void setup() {
         MockitoAnnotations.openMocks(this);
+        chatId = 123L;
     }
 
     @Test
-    void testUntrackCommandResponseSuccess() throws Exception {
+    void testUntrackCommandMissingUrl() {
+        update = createUpdate(chatId, "/untrack");
+        SendMessage response = command.handle(update);
+        assertNotNull(response);
+        assertEquals(
+                "Enter the correct URL to delete (e.g., /untrack https://example.com).",
+                response.getParameters().get("text"));
+    }
+
+    @Test
+    void testUntrackCommandInvalidUrl() {
+        update = createUpdate(chatId, "/untrack invalid-url");
+        SendMessage response = command.handle(update);
+        assertNotNull(response);
+        assertEquals(
+                "Enter the correct URL to delete (e.g., /untrack https://example.com).",
+                response.getParameters().get("text"));
+    }
+
+    @Test
+    void testUntrackCommandSuccess() {
+        update = createUpdate(chatId, "/untrack https://example.com");
+        SendMessage response = command.handle(update);
+        assertNotNull(response);
+        assertEquals(
+                "Link removal request sent: https://example.com",
+                response.getParameters().get("text"));
+        verify(kafkaService).sendCommand(eq(chatId), eq("remove"), any());
+        verify(redisCacheService).removeLink(chatId, "https://example.com");
+    }
+
+    @Test
+    void testUntrackCommandKafkaError() {
+        update = createUpdate(chatId, "/untrack https://example.com");
+        doThrow(new RuntimeException("Kafka error")).when(kafkaService).sendCommand(eq(chatId), eq("remove"), any());
+        SendMessage response = command.handle(update);
+        assertNotNull(response);
+        assertEquals(
+                "Error sending link removal request.", response.getParameters().get("text"));
+        verify(redisCacheService, never()).removeLink(chatId, "https://example.com");
+    }
+
+    private Update createUpdate(Long chatId, String text) {
         Update update = mock(Update.class);
         Message message = mock(Message.class);
         Chat chat = mock(Chat.class);
-        String urlToUntrack = "https://example.com";
-        Long chatId = 123L;
 
         when(update.message()).thenReturn(message);
         when(message.chat()).thenReturn(chat);
         when(chat.id()).thenReturn(chatId);
-        when(message.text()).thenReturn("/untrack " + urlToUntrack);
+        when(message.text()).thenReturn(text);
 
-        doNothing().when(scrapperApiClient).removeLink(anyLong(), any(RemoveLinkRequest.class));
-
-        SendMessage response = command.handle(update);
-
-        String text = (String) response.getParameters().get("text");
-        assertEquals("Link removed from tracking: " + urlToUntrack, text);
-    }
-
-    @Test
-    void testUntrackCommandLinkNotFoundException() throws Exception {
-        Update update = mock(Update.class);
-        Message message = mock(Message.class);
-        Chat chat = mock(Chat.class);
-        String urlToUntrack = "https://example.com";
-        Long chatId = 123L;
-
-        when(update.message()).thenReturn(message);
-        when(message.chat()).thenReturn(chat);
-        when(chat.id()).thenReturn(chatId);
-        when(message.text()).thenReturn("/untrack " + urlToUntrack);
-
-        doThrow(new LinkNotFoundException("Link not found"))
-                .when(scrapperApiClient)
-                .removeLink(anyLong(), any(RemoveLinkRequest.class));
-
-        SendMessage response = command.handle(update);
-
-        String text = (String) response.getParameters().get("text");
-        assertEquals("This link is not tracked.", text);
-    }
-
-    @Test
-    void testUntrackCommandChatNotFoundException() throws Exception {
-        Update update = mock(Update.class);
-        Message message = mock(Message.class);
-        Chat chat = mock(Chat.class);
-        String urlToUntrack = "https://example.com";
-        Long chatId = 123L;
-
-        when(update.message()).thenReturn(message);
-        when(message.chat()).thenReturn(chat);
-        when(chat.id()).thenReturn(chatId);
-        when(message.text()).thenReturn("/untrack " + urlToUntrack);
-
-        doThrow(new ChatNotFoundException("Chat not found"))
-                .when(scrapperApiClient)
-                .removeLink(anyLong(), any(RemoveLinkRequest.class));
-
-        SendMessage response = command.handle(update);
-
-        String text = (String) response.getParameters().get("text");
-        assertEquals("First, register using /start.", text);
+        return update;
     }
 }

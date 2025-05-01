@@ -1,6 +1,6 @@
 package backend.academy.scrapper.filter;
 
-import static org.junit.Assert.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.anyInt;
 import static org.mockito.Mockito.never;
@@ -40,7 +40,7 @@ public class RateLimitingFilterTest {
     @BeforeEach
     public void setUp() {
         filter = new RateLimitingFilter(objectMapper);
-        RateLimitingFilter.requestCounts.clear(); // Очистка счетчика перед каждым тестом
+        RateLimitingFilter.clearRequestCounts(); // Очистка счетчика через публичный метод
     }
 
     @Test

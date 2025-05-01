@@ -2,24 +2,23 @@ package backend.academy.command;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyLong;
-import static org.mockito.Mockito.doNothing;
-import static org.mockito.Mockito.doThrow;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import backend.academy.bot.client.ScrapperApiClient;
 import backend.academy.bot.command.ConversationManager;
 import backend.academy.bot.command.ConversationState;
 import backend.academy.bot.command.TrackCommand;
-import backend.academy.bot.dto.AddLinkRequest;
-import backend.academy.bot.exception.LinkAlreadyAddedException;
+import backend.academy.bot.exception.InvalidLinkException;
+import backend.academy.bot.service.KafkaService;
+import backend.academy.bot.service.RedisCacheService;
 import com.pengrad.telegrambot.model.Chat;
 import com.pengrad.telegrambot.model.Message;
 import com.pengrad.telegrambot.model.Update;
 import com.pengrad.telegrambot.request.SendMessage;
-import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.InjectMocks;
@@ -29,86 +28,115 @@ import org.mockito.MockitoAnnotations;
 class TrackCommandTest {
 
     @Mock
-    private ScrapperApiClient scrapperApiClient;
+    private ConversationManager conversationManager;
 
     @Mock
-    private ConversationManager conversationManager;
+    private KafkaService kafkaService;
+
+    @Mock
+    private RedisCacheService redisCacheService;
 
     @InjectMocks
     private TrackCommand command;
 
+    private Long chatId;
+
     @BeforeEach
     void setup() {
         MockitoAnnotations.openMocks(this);
+        chatId = 123L;
+        when(conversationManager.getUserState(chatId)).thenReturn(ConversationState.IDLE);
+        when(conversationManager.getTrackingData(chatId)).thenReturn(new ConversationManager.TrackingData());
     }
 
     @Test
     void testTrackCommandStart() {
-        Update update = createUpdate(123L, "/track");
-        when(conversationManager.getUserState(anyLong())).thenReturn(ConversationState.IDLE);
-
+        Update update = createUpdate(chatId, "/track");
         SendMessage response = command.handle(update);
-        assertNotNull(response, "Response should not be null");
+        assertNotNull(response);
         assertEquals(
                 "Please enter the URL you want to track:",
                 response.getParameters().get("text"));
+        verify(conversationManager).setUserState(chatId, ConversationState.AWAITING_URL);
     }
 
     @Test
-    void testTrackCommandAwaitingUrl() {
-        Long chatId = 123L;
-        Update update = createUpdate(chatId, "https://example.com");
-
+    void testTrackCommandInvalidUrl() {
         when(conversationManager.getUserState(chatId)).thenReturn(ConversationState.AWAITING_URL);
-        when(conversationManager.getTrackingData(chatId)).thenReturn(new ConversationManager.TrackingData());
+        Update update = createUpdate(chatId, "invalid-url");
 
-        SendMessage response = command.handle(update);
-        assertNotNull(response, "Response should not be null");
-        assertEquals(
-                "Enter tags for this link (optional, space-separated) or type 'skip':",
-                response.getParameters().get("text"));
+        assertThrows(InvalidLinkException.class, () -> command.handle(update));
     }
 
     @Test
-    void testTrackCommandSuccess() throws Exception {
-        Long chatId = 123L;
-        when(conversationManager.getUserState(chatId)).thenReturn(ConversationState.AWAITING_FILTERS);
+    void testTrackCommandSuccess() {
         ConversationManager.TrackingData data = new ConversationManager.TrackingData();
-        data.setUrl("https://example.com");
-        data.setTags(List.of("tag1", "tag2"));
         when(conversationManager.getTrackingData(chatId)).thenReturn(data);
-        doNothing().when(scrapperApiClient).addLink(anyLong(), any(AddLinkRequest.class));
 
-        Update update = createUpdate(chatId, "user:john type:comment");
-        SendMessage response = command.handle(update);
+        // Шаг 1: Начало
+        Update startUpdate = createUpdate(chatId, "/track");
+        command.handle(startUpdate);
+        verify(conversationManager).setUserState(chatId, ConversationState.AWAITING_URL);
 
-        assertNotNull(response, "Response should not be null");
+        // Шаг 2: URL
+        when(conversationManager.getUserState(chatId)).thenReturn(ConversationState.AWAITING_URL);
+        Update urlUpdate = createUpdate(chatId, "https://example.com");
+        command.handle(urlUpdate);
+        verify(conversationManager).setUserState(chatId, ConversationState.AWAITING_TAGS);
+
+        // Шаг 3: Теги
+        when(conversationManager.getUserState(chatId)).thenReturn(ConversationState.AWAITING_TAGS);
+        Update tagsUpdate = createUpdate(chatId, "tag1 tag2");
+        command.handle(tagsUpdate);
+        verify(conversationManager).setUserState(chatId, ConversationState.AWAITING_FILTERS);
+
+        // Шаг 4: Фильтры
+        when(conversationManager.getUserState(chatId)).thenReturn(ConversationState.AWAITING_FILTERS);
+        Update filtersUpdate = createUpdate(chatId, "user:john type:comment");
+        SendMessage response = command.handle(filtersUpdate);
+
+        assertNotNull(response);
         assertEquals(
-                "Link successfully added with specified tags and filters!",
+                "Link tracking request sent successfully!",
                 response.getParameters().get("text"));
+        verify(kafkaService).sendCommand(eq(chatId), eq("add"), any());
+        verify(redisCacheService).deleteLinks(chatId);
+        verify(conversationManager).setUserState(chatId, ConversationState.IDLE);
+        verify(conversationManager).clearTrackingData(chatId);
     }
 
     @Test
-    void testTrackCommandLinkAlreadyTracked() throws Exception {
-        Long chatId = 123L;
-        when(conversationManager.getUserState(chatId)).thenReturn(ConversationState.AWAITING_FILTERS);
+    void testTrackCommandSkipTagsAndFilters() {
         ConversationManager.TrackingData data = new ConversationManager.TrackingData();
-        data.setUrl("https://example.com");
-        data.setTags(List.of("tag1"));
         when(conversationManager.getTrackingData(chatId)).thenReturn(data);
-        doThrow(new LinkAlreadyAddedException("Link already tracked"))
-                .when(scrapperApiClient)
-                .addLink(anyLong(), any(AddLinkRequest.class));
 
-        Update update = createUpdate(chatId, "user:alice");
-        SendMessage response = command.handle(update);
+        // Шаг 1: Начало
+        Update startUpdate = createUpdate(chatId, "/track");
+        command.handle(startUpdate);
 
-        assertNotNull(response, "Response should not be null");
+        // Шаг 2: URL
+        when(conversationManager.getUserState(chatId)).thenReturn(ConversationState.AWAITING_URL);
+        Update urlUpdate = createUpdate(chatId, "https://example.com");
+        command.handle(urlUpdate);
+
+        // Шаг 3: Пропуск тегов
+        when(conversationManager.getUserState(chatId)).thenReturn(ConversationState.AWAITING_TAGS);
+        Update tagsUpdate = createUpdate(chatId, "skip");
+        command.handle(tagsUpdate);
+
+        // Шаг 4: Пропуск фильтров
+        when(conversationManager.getUserState(chatId)).thenReturn(ConversationState.AWAITING_FILTERS);
+        Update filtersUpdate = createUpdate(chatId, "skip");
+        SendMessage response = command.handle(filtersUpdate);
+
+        assertNotNull(response);
         assertEquals(
-                "Error adding link. Please try again.", response.getParameters().get("text"));
+                "Link tracking request sent successfully!",
+                response.getParameters().get("text"));
+        verify(kafkaService).sendCommand(eq(chatId), eq("add"), any());
+        verify(redisCacheService).deleteLinks(chatId);
     }
 
-    // Метод создания моков для Update
     private Update createUpdate(Long chatId, String text) {
         Update update = mock(Update.class);
         Message message = mock(Message.class);

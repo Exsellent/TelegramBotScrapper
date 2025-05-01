@@ -1,8 +1,13 @@
-package backend.academy.scrapper.client.github;
+package backend.academy.scrapper.client.client.github;
 
-import static com.github.tomakehurst.wiremock.client.WireMock.*;
+import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
+import static com.github.tomakehurst.wiremock.client.WireMock.configureFor;
+import static com.github.tomakehurst.wiremock.client.WireMock.get;
+import static com.github.tomakehurst.wiremock.client.WireMock.urlEqualTo;
 import static com.github.tomakehurst.wiremock.core.WireMockConfiguration.wireMockConfig;
 
+import backend.academy.scrapper.client.github.GitHubClient;
+import backend.academy.scrapper.client.github.GitHubClientImpl;
 import backend.academy.scrapper.dto.IssuesCommentsResponse;
 import backend.academy.scrapper.dto.PullCommentsResponse;
 import backend.academy.scrapper.dto.PullRequestResponse;

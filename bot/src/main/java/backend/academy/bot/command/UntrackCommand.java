@@ -1,12 +1,11 @@
 package backend.academy.bot.command;
 
-import backend.academy.bot.client.ScrapperApiClient;
-import backend.academy.bot.dto.RemoveLinkRequest;
-import backend.academy.bot.exception.ChatNotFoundException;
-import backend.academy.bot.exception.LinkNotFoundException;
+import backend.academy.bot.service.KafkaService;
+import backend.academy.bot.service.RedisCacheService;
 import backend.academy.bot.utils.LinkParser;
 import com.pengrad.telegrambot.model.Update;
 import com.pengrad.telegrambot.request.SendMessage;
+import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -14,13 +13,17 @@ import org.springframework.stereotype.Component;
 
 @Component
 public class UntrackCommand implements Command {
-
     private static final Logger LOGGER = LoggerFactory.getLogger(UntrackCommand.class);
-    private final ScrapperApiClient scrapperApiClient;
+    private static final int EXPECTED_PARTS_COUNT = 2;
+    private static final int URL_INDEX = 1;
+
+    private final KafkaService kafkaService;
+    private final RedisCacheService redisCacheService;
 
     @Autowired
-    public UntrackCommand(ScrapperApiClient scrapperApiClient) {
-        this.scrapperApiClient = scrapperApiClient;
+    public UntrackCommand(KafkaService kafkaService, RedisCacheService redisCacheService) {
+        this.kafkaService = kafkaService;
+        this.redisCacheService = redisCacheService;
     }
 
     @Override
@@ -30,29 +33,27 @@ public class UntrackCommand implements Command {
 
     @Override
     public String description() {
-        return "Stop tracking the link";
+        return "Stop tracking a specific link";
     }
 
     @Override
     public SendMessage handle(Update update) {
         Long chatId = update.message().chat().id();
-        String[] parts = update.message().text().split(" ", 2);
+        String[] parts = update.message().text().split(" ", EXPECTED_PARTS_COUNT);
 
-        if (parts.length < 2 || !LinkParser.isValidURL(parts[1])) {
-            return new SendMessage(chatId, "Enter the correct URL to delete.");
+        if (parts.length < EXPECTED_PARTS_COUNT || !LinkParser.isValidURL(parts[URL_INDEX])) {
+            return new SendMessage(chatId, "Enter the correct URL to delete (e.g., /untrack https://example.com).");
         }
 
+        String url = parts[URL_INDEX];
         try {
-            scrapperApiClient.removeLink(chatId, new RemoveLinkRequest(parts[1]));
-            LOGGER.info("Link removed from tracking: {}", parts[1]);
-            return new SendMessage(chatId, "Link removed from tracking: " + parts[1]);
-        } catch (LinkNotFoundException e) {
-            return new SendMessage(chatId, "This link is not tracked.");
-        } catch (ChatNotFoundException e) {
-            return new SendMessage(chatId, "First, register using /start.");
+            kafkaService.sendCommand(chatId, "remove", Map.of("link", url));
+            redisCacheService.removeLink(chatId, url);
+            LOGGER.info("Sent link removal request for chat {}: {}", chatId, url);
+            return new SendMessage(chatId, "Link removal request sent: " + url);
         } catch (Exception e) {
-            LOGGER.error("Error when deleting a link", e);
-            return new SendMessage(chatId, "Error when deleting a link.");
+            LOGGER.error("Error sending link removal request for chat {}", chatId, e);
+            return new SendMessage(chatId, "Error sending link removal request.");
         }
     }
 }

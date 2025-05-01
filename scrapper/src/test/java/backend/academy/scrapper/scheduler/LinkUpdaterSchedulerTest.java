@@ -5,7 +5,6 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.Mockito.*;
 
-import backend.academy.scrapper.client.BotApiClient;
 import backend.academy.scrapper.configuration.ApplicationConfig;
 import backend.academy.scrapper.database.scheduler.LinkUpdaterScheduler;
 import backend.academy.scrapper.dto.ChatLinkDTO;
@@ -18,12 +17,14 @@ import backend.academy.scrapper.dto.User;
 import backend.academy.scrapper.service.ChatLinkService;
 import backend.academy.scrapper.service.GitHubService;
 import backend.academy.scrapper.service.LinkService;
+import backend.academy.scrapper.service.NotificationService;
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.time.OffsetDateTime;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
@@ -49,7 +50,9 @@ public class LinkUpdaterSchedulerTest {
     private GitHubService gitHubService;
 
     @Mock
-    private BotApiClient botApiClient;
+    private NotificationService notificationService;
+
+    ;
 
     private LinkUpdaterScheduler scheduler;
 
@@ -61,7 +64,8 @@ public class LinkUpdaterSchedulerTest {
         when(schedulerConfig.enable()).thenReturn(true);
         when(schedulerConfig.interval()).thenReturn(Duration.ofMinutes(5));
 
-        scheduler = new LinkUpdaterScheduler(linkService, chatLinkService, gitHubService, null, botApiClient, 5);
+        scheduler = new LinkUpdaterScheduler(
+                linkService, chatLinkService, gitHubService, null, notificationService, 5); // Заменили botApiClient
     }
 
     @Test
@@ -79,7 +83,6 @@ public class LinkUpdaterSchedulerTest {
                 .tags(null)
                 .build();
 
-        // Правильный порядок мокирования: сначала void-методы
         doNothing().when(linkService).update(any(LinkDTO.class));
 
         when(linkService.findLinksToCheck(any(), anyInt(), anyInt()))
@@ -107,17 +110,19 @@ public class LinkUpdaterSchedulerTest {
 
         when(gitHubService.getPullRequestInfo("owner", "repo", 123)).thenReturn(Mono.just(prInfo));
 
-        when(botApiClient.postUpdate(any(LinkUpdateRequest.class))).thenReturn(Mono.empty());
+        doNothing()
+                .when(notificationService)
+                .sendNotification(any(LinkUpdateRequest.class)); // Заменили botApiClient.postUpdate
 
         // Act
         scheduler.update();
 
         // Assert
         verify(gitHubService, times(1)).getPullRequestInfo("owner", "repo", 123);
-        verify(botApiClient, times(1)).postUpdate(any(LinkUpdateRequest.class));
+        verify(notificationService, times(1)).sendNotification(any(LinkUpdateRequest.class)); // Заменили botApiClient
 
         ArgumentCaptor<LinkUpdateRequest> captor = ArgumentCaptor.forClass(LinkUpdateRequest.class);
-        verify(botApiClient).postUpdate(captor.capture());
+        verify(notificationService).sendNotification(captor.capture()); // Заменили botApiClient
         assertNotNull(captor.getValue().getDescription());
     }
 
@@ -165,7 +170,7 @@ public class LinkUpdaterSchedulerTest {
         when(gitHubService.getPullRequestInfo("owner", "repo", 456)).thenReturn(Mono.just(prInfo));
 
         ArgumentCaptor<LinkUpdateRequest> captor = ArgumentCaptor.forClass(LinkUpdateRequest.class);
-        when(botApiClient.postUpdate(captor.capture())).thenReturn(Mono.empty());
+        doNothing().when(notificationService).sendNotification(captor.capture()); // Заменили botApiClient.postUpdate
 
         // Act
         scheduler.update();
@@ -176,10 +181,8 @@ public class LinkUpdaterSchedulerTest {
         String description = capturedRequest.getDescription();
         System.out.println("Captured description: " + description);
 
-        // Проверяем наличие имени пользователя
         assertTrue(description.contains("Comment by commentUser"));
 
-        // Извлекаем текст комментария из сообщения и проверяем его длину
         String[] lines = description.split("\n");
         String commentLine = null;
         for (String line : lines) {
@@ -193,5 +196,54 @@ public class LinkUpdaterSchedulerTest {
                 commentLine.length() <= 203,
                 "Comment preview should be truncated to 200 characters + '...' (203 total)");
         assertTrue(commentLine.endsWith("..."), "Truncated comment should end with ellipsis");
+    }
+
+    @Test
+    public void testIgnoreFilteredUserUpdates() {
+        // Arrange
+        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime lastUpdate = now.minusHours(1);
+        LinkDTO githubLink = LinkDTO.builder()
+                .linkId(1L)
+                .url("https://github.com/owner/repo/pull/123")
+                .description("GitHub PR")
+                .createdAt(now)
+                .lastCheckTime(now)
+                .lastUpdateTime(lastUpdate)
+                .tags(null)
+                .build();
+
+        when(linkService.findLinksToCheck(any(), anyInt(), anyInt()))
+                .thenReturn(List.of(githubLink))
+                .thenReturn(Collections.emptyList());
+
+        when(chatLinkService.findAllChatsForLink(1L)).thenReturn(List.of(new ChatLinkDTO(1L, 101L)));
+        when(chatLinkService.getFiltersForLink(1L)).thenReturn(Map.of("user", "testUser"));
+
+        PullRequestResponse pullRequest = new PullRequestResponse();
+        pullRequest.setTitle("Test Pull Request");
+        pullRequest.setCreatedAt(OffsetDateTime.now().minusDays(1));
+        pullRequest.setUser(new User(1L, "testUser", null, "User"));
+
+        User user = new User(1L, "testUser", null, "User");
+        IssuesCommentsResponse comment = new IssuesCommentsResponse(
+                "https://api.github.com/repos/owner/repo/issues/comments/123",
+                123L,
+                "This is a test comment",
+                user,
+                OffsetDateTime.now().minusMinutes(30),
+                OffsetDateTime.now().minusMinutes(20));
+
+        CombinedPullRequestInfo prInfo =
+                new CombinedPullRequestInfo("Test PR", pullRequest, List.of(comment), new ArrayList<>());
+
+        when(gitHubService.getPullRequestInfo("owner", "repo", 123)).thenReturn(Mono.just(prInfo));
+
+        // Act
+        scheduler.update();
+
+        // Assert
+        verify(gitHubService, times(1)).getPullRequestInfo("owner", "repo", 123);
+        verify(notificationService, never()).sendNotification(any(LinkUpdateRequest.class));
     }
 }

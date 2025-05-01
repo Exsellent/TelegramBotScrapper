@@ -6,8 +6,11 @@ on:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
     name: Build
+    runs-on: edu-self-hosted
+    container:
+      image: maven:3-eclipse-temurin-23
+    timeout-minutes: 10
     permissions:
       contents: read
       packages: write
@@ -19,8 +22,6 @@ jobs:
         with:
           java-version: '23'
           distribution: 'temurin'
-          cache: maven
-
       - name: maven build
         run: mvn verify
 
@@ -37,7 +38,10 @@ jobs:
 
   linter:
     name: linter
-    runs-on: ubuntu-latest
+    runs-on: edu-self-hosted
+    container:
+      image: maven:3-eclipse-temurin-23
+    timeout-minutes: 10
     permissions:
       contents: read
       packages: write
@@ -49,6 +53,4 @@ jobs:
         with:
           java-version: '23'
           distribution: 'temurin'
-          cache: maven
-
       - run: mvn compile -am spotless:check modernizer:modernizer spotbugs:check pmd:check pmd:cpd-check

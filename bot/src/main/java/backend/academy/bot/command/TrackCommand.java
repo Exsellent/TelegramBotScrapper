@@ -1,16 +1,13 @@
 package backend.academy.bot.command;
 
-import backend.academy.bot.client.ScrapperApiClient;
-import backend.academy.bot.dto.AddLinkRequest;
 import backend.academy.bot.exception.FilterValidationException;
 import backend.academy.bot.exception.InvalidLinkException;
+import backend.academy.bot.service.KafkaService;
+import backend.academy.bot.service.RedisCacheService;
 import backend.academy.bot.utils.LinkParser;
 import com.pengrad.telegrambot.model.Update;
 import com.pengrad.telegrambot.request.SendMessage;
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -19,13 +16,17 @@ import org.springframework.stereotype.Component;
 @Component
 public class TrackCommand implements Command {
     private static final Logger LOGGER = LoggerFactory.getLogger(TrackCommand.class);
-    private final ScrapperApiClient scrapperApiClient;
     private final ConversationManager conversationManager;
+    private final KafkaService kafkaService;
+    private final RedisCacheService redisCacheService;
 
     @Autowired
-    public TrackCommand(ScrapperApiClient scrapperApiClient, ConversationManager conversationManager) {
-        this.scrapperApiClient = scrapperApiClient;
+    public TrackCommand(
+            ConversationManager conversationManager, KafkaService kafkaService, RedisCacheService redisCacheService) {
         this.conversationManager = conversationManager;
+        this.kafkaService = kafkaService;
+        this.redisCacheService = redisCacheService;
+        LOGGER.info("TrackCommand initialized");
     }
 
     @Override
@@ -43,8 +44,6 @@ public class TrackCommand implements Command {
         Long chatId = update.message().chat().id();
         String messageText = update.message().text();
         ConversationState state = conversationManager.getUserState(chatId);
-
-        // Инициализация данных для отслеживания
         ConversationManager.TrackingData data = conversationManager.getTrackingData(chatId);
 
         switch (state) {
@@ -64,8 +63,12 @@ public class TrackCommand implements Command {
                 return new SendMessage(chatId, "Enter tags for this link (optional, space-separated) or type 'skip':");
 
             case AWAITING_TAGS:
-                if (messageText.equals("skip")) {
-                    break;
+                if (messageText.equalsIgnoreCase("skip")) {
+                    data.setTags(Collections.emptyList());
+                    conversationManager.setUserState(chatId, ConversationState.AWAITING_FILTERS);
+                    return new SendMessage(
+                            chatId,
+                            "Enter filters (format: key:value, e.g., 'user:john type:comment') or type 'skip':");
                 }
                 List<String> tags = Arrays.asList(messageText.split("\\s+"));
                 data.setTags(tags);
@@ -74,45 +77,46 @@ public class TrackCommand implements Command {
                         chatId, "Enter filters (format: key:value, e.g., 'user:john type:comment') or type 'skip':");
 
             case AWAITING_FILTERS:
-                if (messageText.equals("skip")) {
-                    break;
+                if (messageText.equalsIgnoreCase("skip")) {
+                    data.setFilters(Collections.emptyMap());
+                } else {
+                    Map<String, String> filters = parseFilters(messageText);
+                    if (filters.isEmpty()) {
+                        throw new FilterValidationException(
+                                "Invalid filter format. Please enter filters in the correct format.");
+                    }
+                    data.setFilters(filters);
                 }
-                Map<String, String> filters = parseFilters(messageText);
-                if (filters.isEmpty()) {
-                    throw new FilterValidationException(
-                            "Invalid filter format. Please enter filters in the correct format.");
-                }
-                data.setFilters(filters);
 
                 try {
-                    AddLinkRequest request = new AddLinkRequest(data.getUrl(), data.getTags(), data.getFilters());
-                    scrapperApiClient.addLink(chatId, request);
+                    Map<String, String> effectiveFilters = data.getFilters() != null ? data.getFilters() : Map.of();
+                    kafkaService.sendCommand(chatId, "add", Map.of("link", data.getUrl(), "filters", effectiveFilters));
+                    redisCacheService.deleteLinks(chatId);
                     conversationManager.setUserState(chatId, ConversationState.IDLE);
                     conversationManager.clearTrackingData(chatId);
-                    return new SendMessage(chatId, "Link successfully added with specified tags and filters!");
+                    LOGGER.info("Sent link tracking request for chat {}: {}", chatId, data.getUrl());
+                    return new SendMessage(chatId, "Link tracking request sent successfully!");
                 } catch (Exception e) {
-                    LOGGER.error("Error adding link", e);
-                    return new SendMessage(chatId, "Error adding link. Please try again.");
+                    LOGGER.error("Error sending link tracking request for chat {}", chatId, e);
+                    return new SendMessage(chatId, "Error sending link tracking request. Please try again.");
                 }
 
             default:
                 return new SendMessage(chatId, "Unknown state. Please start over with /track");
         }
 
-        return null;
+        return new SendMessage(chatId, "Please continue the tracking process.");
     }
 
     private Map<String, String> parseFilters(String filterText) {
         Map<String, String> filters = new HashMap<>();
         String[] filterPairs = filterText.split("\\s+");
-
         for (String pair : filterPairs) {
             String[] keyValue = pair.split(":");
             if (keyValue.length == 2) {
                 filters.put(keyValue[0], keyValue[1]);
             }
         }
-
         return filters;
     }
 }

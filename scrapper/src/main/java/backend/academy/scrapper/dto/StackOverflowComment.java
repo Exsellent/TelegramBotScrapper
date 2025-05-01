@@ -3,13 +3,17 @@ package backend.academy.scrapper.dto;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import java.time.OffsetDateTime;
-import lombok.*;
+import lombok.AllArgsConstructor;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
+import lombok.ToString;
 
 @Getter
 @Setter
 @AllArgsConstructor
 @NoArgsConstructor
-@ToString(exclude = "owner") // Исключаем owner, чтобы избежать циклических ссылок
+@ToString(exclude = "owner")
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class StackOverflowComment implements Comment {
     @JsonProperty("body")

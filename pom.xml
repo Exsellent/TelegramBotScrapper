@@ -7,7 +7,6 @@
         <artifactId>spring-boot-starter-parent</artifactId>
         <version>3.4.2</version>
         <relativePath/>
-        <!-- lookup parent from repository -->
     </parent>
 
     <groupId>backend.academy</groupId>
@@ -22,54 +21,33 @@
     </modules>
 
     <properties>
-        <!-- Определение свойств для версий зависимостей -->
         <revision>1.0</revision>
-
-        <!-- java, kotlin and maven versions -->
         <maven.version>3.8.8</maven.version>
         <java.version>23</java.version>
         <jdk.version>23</jdk.version>
-
-        <!-- libs -->
         <commons-text.version>1.12.0</commons-text.version>
         <commons-compress.version>1.27.1</commons-compress.version>
         <commons-io.version>2.18.0</commons-io.version>
-
         <springdoc.version>2.8.4</springdoc.version>
-        <bucket4j-spring-boot-starter.version>0.12.8</bucket4j-spring-boot-starter.version>
-
+        <bucket4j.spring-boot-starter.version>0.12.8</bucket4j.spring-boot-starter.version>
         <java-telegram-bot-api.version>7.11.0</java-telegram-bot-api.version>
         <wiremock.version>3.10.0</wiremock.version>
-
-        <!-- annotations -->
         <jetbrains-annotations.version>26.0.1</jetbrains-annotations.version>
         <checker-qual.version>3.48.3</checker-qual.version>
         <jspecify.version>1.0.0</jspecify.version>
-
-        <!-- plugins -->
         <maven-enforcer-plugin.version>3.5.0</maven-enforcer-plugin.version>
         <flatten-maven-plugin.version>1.6.0</flatten-maven-plugin.version>
         <jacoco-maven-plugin.version>0.8.12</jacoco-maven-plugin.version>
         <error-prone.version>2.36.0</error-prone.version>
-
-        <!-- Spotless -->
         <spotless-maven-plugin.version>2.44.2</spotless-maven-plugin.version>
         <palantir-java-format.version>2.50.0</palantir-java-format.version>
-
-        <!-- PMD -->
         <maven-pmd-plugin.version>3.21.0</maven-pmd-plugin.version>
         <pmd.version>7.9.0</pmd.version>
-
-        <!-- Modernizer -->
         <modernizer-maven-plugin.version>3.1.0</modernizer-maven-plugin.version>
-
-        <!-- spotbugs -->
         <spotbugs.version>4.9.0</spotbugs.version>
         <spotbugs-maven-plugin.version>4.8.6.6</spotbugs-maven-plugin.version>
         <findsecbugs.version>LATEST</findsecbugs.version>
         <spotbugs-slf4j.version>1.5.0</spotbugs-slf4j.version>
-
-        <!-- Spring Boot -->
         <spring-boot.version>3.4.2</spring-boot.version>
         <lombok.version>1.18.36</lombok.version>
     </properties>
@@ -97,7 +75,6 @@
                 <artifactId>annotations</artifactId>
                 <version>${jetbrains-annotations.version}</version>
             </dependency>
-
             <dependency>
                 <groupId>org.apache.commons</groupId>
                 <artifactId>commons-compress</artifactId>
@@ -113,18 +90,26 @@
                 <artifactId>commons-text</artifactId>
                 <version>${commons-text.version}</version>
             </dependency>
-
             <dependency>
                 <groupId>com.github.pengrad</groupId>
                 <artifactId>java-telegram-bot-api</artifactId>
                 <version>${java-telegram-bot-api.version}</version>
+                <exclusions>
+                    <exclusion>
+                        <groupId>com.vaadin.external.google</groupId>
+                        <artifactId>android-json</artifactId>
+                    </exclusion>
+                    <exclusion>
+                        <groupId>org.json</groupId>
+                        <artifactId>json</artifactId>
+                    </exclusion>
+                </exclusions>
             </dependency>
             <dependency>
                 <groupId>org.wiremock</groupId>
                 <artifactId>wiremock-standalone</artifactId>
                 <version>${wiremock.version}</version>
             </dependency>
-
             <dependency>
                 <groupId>org.springdoc</groupId>
                 <artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
@@ -133,7 +118,7 @@
             <dependency>
                 <groupId>com.giffing.bucket4j.spring.boot.starter</groupId>
                 <artifactId>bucket4j-spring-boot-starter</artifactId>
-                <version>${bucket4j-spring-boot-starter.version}</version>
+                <version>${bucket4j.spring-boot-starter.version}</version>
             </dependency>
             <dependency>
                 <groupId>org.projectlombok</groupId>
@@ -175,7 +160,6 @@
             <artifactId>annotations</artifactId>
             <scope>provided</scope>
         </dependency>
-
         <dependency>
             <groupId>org.awaitility</groupId>
             <artifactId>awaitility</artifactId>
@@ -196,12 +180,6 @@
             <artifactId>wiremock-standalone</artifactId>
             <scope>test</scope>
         </dependency>
-        <!--        <dependency>-->
-        <!--            <groupId>io.github.cdimascio</groupId>-->
-        <!--            <artifactId>java-dotenv</artifactId>-->
-        <!--            <version>5.2.2</version>-->
-        <!--        </dependency>-->
-
         <dependency>
             <groupId>org.postgresql</groupId>
             <artifactId>postgresql</artifactId>
@@ -228,6 +206,18 @@
             <scope>test</scope>
         </dependency>
         <dependency>
+            <groupId>org.testcontainers</groupId>
+            <artifactId>kafka</artifactId>
+            <version>1.20.5</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>com.redis</groupId>
+            <artifactId>testcontainers-redis</artifactId>
+            <version>2.2.4</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-test</artifactId>
             <scope>test</scope>
@@ -244,9 +234,71 @@
             <version>5.2.0</version>
             <scope>test</scope>
         </dependency>
+        <dependency>
+            <groupId>org.springframework.kafka</groupId>
+            <artifactId>spring-kafka</artifactId>
+            <version>3.2.3</version>
+            <exclusions>
+                <exclusion>
+                    <groupId>org.json</groupId>
+                    <artifactId>json</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>com.vaadin.external.google</groupId>
+                    <artifactId>android-json</artifactId>
+                </exclusion>
+            </exclusions>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-data-redis</artifactId>
+            <version>3.3.4</version>
+        </dependency>
+        <dependency>
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-databind</artifactId>
+            <version>2.18.2</version>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-configuration-processor</artifactId>
+            <optional>true</optional>
+        </dependency>
+        <!--        <dependency>-->
+        <!--            <groupId>org.slf4j</groupId>-->
+        <!--            <artifactId>slf4j-simple</artifactId>-->
+        <!--            <version>2.0.16</version>-->
+        <!--            <scope>provided</scope>-->
+        <!--        </dependency>-->
+        <dependency>
+            <groupId>org.slf4j</groupId>
+            <artifactId>slf4j-simple</artifactId>
+            <version>2.0.16</version>
+            <scope>test</scope>
+        </dependency>
+        <!--        <dependency>-->
+        <!--            <groupId>org.apache.logging.log4j</groupId>-->
+        <!--            <artifactId>log4j-slf4j-impl</artifactId>-->
+        <!--            <version>2.24.1</version>-->
+        <!--            <scope>test</scope>-->
+        <!--            <exclusions>-->
+        <!--                <exclusion>-->
+        <!--                    <groupId>org.apache.logging.slf4j</groupId>-->
+        <!--                    <artifactId>slf4j-provider</artifactId>-->
+        <!--                </exclusion>-->
+        <!--            </exclusions>-->
+        <!--        </dependency>-->
     </dependencies>
 
     <build>
+        <testResources>
+            <testResource>
+                <directory>src/test/resources</directory>
+                <includes>
+                    <include>**/*</include>
+                </includes>
+            </testResource>
+        </testResources>
         <pluginManagement>
             <plugins>
                 <plugin>
@@ -360,7 +412,6 @@
                                     <banDuplicatePomDependencyVersions/>
                                     <banDynamicVersions/>
                                     <dependencyConvergence/>
-                                    <!--                                    <reactorModuleConvergence/>-->
                                 </rules>
                             </configuration>
                         </execution>
@@ -451,11 +502,6 @@
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-failsafe-plugin</artifactId>
                 <version>3.0.0-M5</version>
-            </plugin>
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-surefire-plugin</artifactId>
-                <version>3.5.2</version>
             </plugin>
             <plugin>
                 <groupId>org.codehaus.mojo</groupId>

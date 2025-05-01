@@ -20,7 +20,7 @@ public class IssuesCommentsResponse implements Comment {
     private Long id;
     private String body;
 
-    @JsonProperty("user") // Добавлено: маппинг поля "user" из JSON
+    @JsonProperty("user")
     private User user;
 
     @JsonProperty("created_at")

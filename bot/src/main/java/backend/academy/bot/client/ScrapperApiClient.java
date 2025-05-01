@@ -32,6 +32,7 @@ public class ScrapperApiClient {
     private static final Logger LOGGER = LoggerFactory.getLogger(ScrapperApiClient.class);
     private final RestClient restClient;
     private final String baseUrl;
+
     private static final int REQUEST_TIMEOUT = 30000; // 30 seconds timeout
     private static final int MAX_RETRIES = 3;
 
