@@ -104,7 +104,7 @@ public class ScrapperApiController {
     public void sendUpdate(LinkUpdateRequest update) {
         gitHubWebClient
                 .post()
-                .uri("http://localhost:8080/api/updates")
+                .uri("http://bot:8080/api/updates")
                 .contentType(MediaType.APPLICATION_JSON)
                 .bodyValue(update)
                 .retrieve()

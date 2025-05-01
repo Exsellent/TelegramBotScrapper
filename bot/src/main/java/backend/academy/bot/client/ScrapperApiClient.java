@@ -74,12 +74,26 @@ public class ScrapperApiClient {
     public void init() {
         try {
             circuitBreaker.executeSupplier(() -> {
-                restClient.get().uri(baseUrl + "/actuator/health").retrieve().toBodilessEntity();
-                return null;
+                LOGGER.debug("Sending request to http://scrapper:8081/actuator/health");
+                return restClient
+                        .get()
+                        .uri("http://scrapper:8081/actuator/health")
+                        .retrieve()
+                        .onStatus(HttpStatusCode::is5xxServerError, (req, res) -> {
+                            String errorBody;
+                            try {
+                                errorBody = new String(res.getBody().readAllBytes());
+                            } catch (NullPointerException e) {
+                                errorBody = "No body";
+                            }
+                            LOGGER.error("Server error: {} - Body: {}", res.getStatusCode(), errorBody);
+                            throw new RuntimeException("Server error: " + res.getStatusCode());
+                        })
+                        .toBodilessEntity();
             });
             LOGGER.info("The Scrapper API is available at: {}", baseUrl);
         } catch (Exception e) {
-            LOGGER.warn("The Scrapper API is unavailable at: {}. Error: {}", baseUrl, e.getMessage());
+            LOGGER.warn("The Scrapper API is unavailable at: {}. Error: {}", baseUrl, e.getMessage(), e);
         }
     }
 

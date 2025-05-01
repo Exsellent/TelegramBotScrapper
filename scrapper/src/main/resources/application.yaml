@@ -120,4 +120,5 @@ scrapper:
 
 logging:
   level:
+    org.springframework.boot.actuate: DEBUG
     org.springframework.data.redis: DEBUG

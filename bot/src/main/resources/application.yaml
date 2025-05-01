@@ -3,6 +3,8 @@ app:
 scrapper:
   api:
     base-url: ${SCRAPPER_API_BASE_URL:http://scrapper:8081/api}
+    actuator-url: ${SCRAPPER_ACTUATOR_URL:http://scrapper:8081/actuator}
+
 spring:
   datasource:
     url: jdbc:postgresql://postgresql:5432/scrapper
@@ -15,13 +17,24 @@ spring:
     name: bot
   jackson:
     time-zone: UTC
+  kafka:
+    bootstrap-servers: kafka:9092
+    consumer:
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+      properties:
+        spring.json.trusted.packages: backend.academy.bot.dto,backend.academy.scrapper.dto
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+
 server:
   port: 8080
-#logging:
-#  config: classpath:log4j2-plain.xml
+logging:
   level:
     org.springframework.core.env: TRACE
     backend.academy.bot: DEBUG
+    org.apache.kafka: DEBUG
 springdoc:
   swagger-ui:
     path: /swagger-ui
@@ -30,8 +43,8 @@ http:
     connectTimeout: 5000
     readTimeout: 10000
 retry:
-  max-attempts: 3
-  first-backoff-seconds: 1
+  max-attempts: 5
+  first-backoff-seconds: 5
   retryable-status-codes: [500, 502, 503, 504, 429]
 rate-limiting:
   request-limit: 100

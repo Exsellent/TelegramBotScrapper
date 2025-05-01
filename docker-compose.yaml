@@ -115,8 +115,6 @@ services:
     env_file:
       - .env
 
-
-
   scrapper:
       build:
         context: .
@@ -181,14 +179,16 @@ services:
         condition: service_healthy
       kafka-setup:
         condition: service_completed_successfully
+      scrapper:
+        condition: service_healthy
     environment:
+      - SPRING_APPLICATION_JSON={"scrapper.api.base-url":"http://scrapper:8081/api"}
       - SPRING_DATASOURCE_URL=jdbc:postgresql://postgresql:5432/scrapper
       - SPRING_DATASOURCE_USERNAME=postgres
       - SPRING_DATASOURCE_PASSWORD=${POSTGRES_PASSWORD}
       - SPRING_DATASOURCE_DRIVER_CLASS_NAME=org.postgresql.Driver
       - SPRING_DATA_REDIS_HOST=redis
       - SPRING_DATA_REDIS_PORT=6379
-      - SCRAPPER_API_BASE_URL=http://scrapper:8081/api
       - APP_KAFKA_TOPICS_LINK_UPDATES=link-updates
       - APP_KAFKA_TOPICS_LINK_COMMANDS=link-commands
       - APP_KAFKA_TOPICS_NOTIFICATIONS=link-updates
