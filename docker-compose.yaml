@@ -114,15 +114,17 @@ services:
       - backend
     env_file:
       - .env
+      - .env
 
   scrapper:
       build:
         context: .
-        dockerfile: Dockerfile
+        dockerfile: scrapper.Dockerfile
         args:
           JAR_FILE: scrapper/target/scrapper.jar
       ports:
-        - "8082:8081"
+        - "8082:8081"  # Основной порт приложения
+        - "8083:8082"  # Actuator
       depends_on:
         postgresql:
           condition: service_healthy
@@ -151,7 +153,7 @@ services:
         - APP_TELEGRAM_TOKEN=7394729669:AAESKNso0R1AaRZRxN3zFYGeMq3FbEZ69cw
       command: [ "java", "-jar", "/app/app.jar" ]
       healthcheck:
-        test: [ "CMD-SHELL", "curl -f http://localhost:8081/actuator/health || exit 1" ]
+        test: [ "CMD-SHELL", "curl -f http://localhost:8082/actuator/health || exit 1" ]
         interval: 10s
         timeout: 5s
         retries: 10
@@ -167,11 +169,12 @@ services:
     container_name: bot
     build:
       context: .
-      dockerfile: Dockerfile
+      dockerfile: bot.Dockerfile
       args:
         JAR_FILE: bot/target/link-tracker-bot.jar
     ports:
-      - "8080:8080"
+      - "8080:8080"  # Основной порт приложения
+      - "8081:8081"  # Actuator
     depends_on:
       postgresql:
         condition: service_healthy
@@ -197,12 +200,15 @@ services:
       - BACKOFF_SETTINGS_MULTIPLIER=2.0
       - BACKOFF_SETTINGS_MAX_RETRIES=10
       - CONNECTION_RETRY_ENABLED=true
-      - SERVER_STARTUP_DELAY=60000
+      - SERVER_STARTUP_DELAY=30000
       - LOGGING_LEVEL_ROOT=INFO
       - LOGGING_LEVEL_ORG_SPRINGFRAMEWORK=INFO
       - LOGGING_LEVEL_ORG_APACHE_KAFKA=INFO
-      - MANAGEMENT_ENDPOINTS_WEB_EXPOSURE_INCLUDE=health,info
+      - MANAGEMENT_ENDPOINTS_WEB_EXPOSURE_INCLUDE=health,info,metrics,prometheus
+      - MANAGEMENT_ENDPOINT_PROMETHEUS_ENABLED=true
+      - MANAGEMENT_METRICS_EXPORT_PROMETHEUS_ENABLED=true
       - MANAGEMENT_HEALTH_SHOW_DETAILS=always
+      - MANAGEMENT_SERVER_PORT=8082
     command: [ "java", "-jar", "/app/app.jar" ]
     networks:
       - backend
@@ -210,12 +216,30 @@ services:
     env_file:
       - bot/.env
     healthcheck:
-      test: [ "CMD-SHELL", "curl -f http://localhost:8080/actuator/health || exit 1" ]
+      test: [ "CMD-SHELL", "curl -f http://localhost:8082/actuator/health || exit 1" ]
       interval: 10s
       timeout: 5s
       retries: 10
       start_period: 60s
 
+  prometheus:
+    image: prom/prometheus
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml
+    ports:
+      - "9090:9090"
+    networks:
+      - backend
+
+  grafana:
+    image: grafana/grafana-oss
+    ports:
+      - "3001:3000"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+    networks:
+      - backend
+
 networks:
-    backend:
-      driver: bridge
+  backend:
+    driver: bridge

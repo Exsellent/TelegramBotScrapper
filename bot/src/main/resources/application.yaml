@@ -3,7 +3,7 @@ app:
 scrapper:
   api:
     base-url: ${SCRAPPER_API_BASE_URL:http://scrapper:8081/api}
-    actuator-url: ${SCRAPPER_ACTUATOR_URL:http://scrapper:8081/actuator}
+    actuator-url: ${SCRAPPER_ACTUATOR_URL:http://scrapper:8082/actuator}
 
 spring:
   datasource:
@@ -36,6 +36,8 @@ logging:
     org.springframework.core.env: TRACE
     backend.academy.bot: DEBUG
     org.apache.kafka: DEBUG
+    org.springframework.boot.actuate.endpoint.web.servlet: DEBUG
+    io.micrometer.prometheus: DEBUG
 springdoc:
   swagger-ui:
     path: /swagger-ui
@@ -50,3 +52,20 @@ retry:
 rate-limiting:
   request-limit: 100
   window-seconds: 60
+management:
+  server:
+    port: 8082  # Отдельный порт для Actuator # было 8081
+  endpoints:
+    web:
+      base-path: /actuator
+      exposure:
+        include: health,info,metrics,prometheus
+  endpoint:
+    health:
+      show-details: always
+    prometheus:
+      enabled: true
+  prometheus:
+    metrics:
+      export:
+        enabled: true

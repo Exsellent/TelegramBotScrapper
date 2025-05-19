@@ -7,24 +7,29 @@ import org.springframework.stereotype.Component;
 @Component
 public class BotMetrics {
     private final MeterRegistry meterRegistry;
+    private final Timer updateTimer;
 
     public BotMetrics(MeterRegistry meterRegistry) {
         this.meterRegistry = meterRegistry;
+        this.updateTimer = Timer.builder("bot.update.processing")
+                .tag("status", "success")
+                .publishPercentiles(0.50, 0.95, 0.99)
+                .register(meterRegistry);
     }
 
-    public Timer.Sample startTimer() {
-        return Timer.start(meterRegistry);
-    }
-
-    public void recordUpdateProcessingTime(Timer.Sample sample, boolean success) {
-        sample.stop(meterRegistry.timer("bot.update.processing", "status", success ? "success" : "error"));
-    }
-
-    public void incrementRequestCount(String requestType) {
-        meterRegistry.counter("bot.requests.count", "type", requestType).increment();
+    public void recordUpdateProcessingTime(Runnable task, boolean success) {
+        Timer timer = Timer.builder("bot.update.processing")
+                .tag("status", success ? "success" : "error")
+                .publishPercentiles(0.50, 0.95, 0.99)
+                .register(meterRegistry);
+        timer.record(task);
     }
 
     public void incrementErrorCount(String errorType) {
         meterRegistry.counter("bot.errors.count", "type", errorType).increment();
+    }
+
+    public void incrementMessageCount() {
+        meterRegistry.counter("bot_messages_total").increment();
     }
 }

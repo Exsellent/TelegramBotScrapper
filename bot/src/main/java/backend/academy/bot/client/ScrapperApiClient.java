@@ -42,6 +42,9 @@ public class ScrapperApiClient {
     @Value("${conversation.timeout.minutes:15}")
     private int conversationTimeoutMinutes;
 
+    @Value("${scrapper.api.actuator-url}")
+    private String actuatorUrl;
+
     public ScrapperApiClient(
             @Value("${scrapper.api.base-url}") String baseUrl,
             SimpleClientHttpRequestFactory requestFactory,
@@ -74,10 +77,10 @@ public class ScrapperApiClient {
     public void init() {
         try {
             circuitBreaker.executeSupplier(() -> {
-                LOGGER.debug("Sending request to http://scrapper:8081/actuator/health");
+                LOGGER.debug("Sending request to {}", actuatorUrl + "/health");
                 return restClient
                         .get()
-                        .uri("http://scrapper:8081/actuator/health")
+                        .uri(actuatorUrl + "/health")
                         .retrieve()
                         .onStatus(HttpStatusCode::is5xxServerError, (req, res) -> {
                             String errorBody;
@@ -91,9 +94,9 @@ public class ScrapperApiClient {
                         })
                         .toBodilessEntity();
             });
-            LOGGER.info("The Scrapper API is available at: {}", baseUrl);
+            LOGGER.info("The Scrapper API is available at: {}", actuatorUrl);
         } catch (Exception e) {
-            LOGGER.warn("The Scrapper API is unavailable at: {}. Error: {}", baseUrl, e.getMessage(), e);
+            LOGGER.warn("The Scrapper API is unavailable at: {}. Error: {}", actuatorUrl, e.getMessage(), e);
         }
     }
 
