@@ -356,7 +356,10 @@
             <artifactId>log4j-slf4j-impl</artifactId>
             <version>2.23.1</version>
         </dependency>
-
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-actuator</artifactId>
+        </dependency>
     </dependencies>
 
     <build>

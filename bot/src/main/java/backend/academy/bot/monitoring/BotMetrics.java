@@ -1,35 +1,56 @@
 package backend.academy.bot.monitoring;
 
+import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Timer;
+import jakarta.annotation.PostConstruct;
 import org.springframework.stereotype.Component;
 
 @Component
 public class BotMetrics {
-    private final MeterRegistry meterRegistry;
-    private final Timer updateTimer;
 
-    public BotMetrics(MeterRegistry meterRegistry) {
-        this.meterRegistry = meterRegistry;
-        this.updateTimer = Timer.builder("bot.update.processing")
-                .tag("status", "success")
-                .publishPercentiles(0.50, 0.95, 0.99)
-                .register(meterRegistry);
-    }
+    private final Counter messageCounter;
+    private final Counter errorCounter;
+    private final Timer updateProcessingTimer;
 
-    public void recordUpdateProcessingTime(Runnable task, boolean success) {
-        Timer timer = Timer.builder("bot.update.processing")
-                .tag("status", success ? "success" : "error")
-                .publishPercentiles(0.50, 0.95, 0.99)
-                .register(meterRegistry);
-        timer.record(task);
-    }
+    public BotMetrics(MeterRegistry registry) {
+        this.messageCounter = Counter.builder("bot_messages_total")
+                .description("Total number of messages processed")
+                .register(registry);
 
-    public void incrementErrorCount(String errorType) {
-        meterRegistry.counter("bot.errors.count", "type", errorType).increment();
+        this.errorCounter = Counter.builder("bot_errors_total")
+                .description("Total number of errors")
+                .register(registry);
+
+        this.updateProcessingTimer = Timer.builder("bot_update_processing")
+                .description("Time taken to process updates")
+                .publishPercentiles(0.5, 0.95, 0.99) // p50/p95/p99
+                .register(registry);
     }
 
     public void incrementMessageCount() {
-        meterRegistry.counter("bot_messages_total").increment();
+        messageCounter.increment();
+    }
+
+    public void incrementErrorCount(String errorType) {
+        errorCounter.increment();
+    }
+
+    public void recordUpdateProcessingTime(Runnable action, boolean success) {
+        updateProcessingTimer.record(action);
+    }
+
+    @PostConstruct
+    public void init() {
+        incrementMessageCount();
+        incrementErrorCount("test");
+        recordUpdateProcessingTime(
+                () -> {
+                    try {
+                        Thread.sleep(10);
+                    } catch (InterruptedException ignored) {
+                    }
+                },
+                true);
     }
 }

@@ -1,8 +1,6 @@
 {
     "dashboard": {
-        "id": null,
-        "uid": "29a3ef57",
-        "title": "RED Metrics Dashboard",
+        "title": "Scrapper and Bot Metrics Dashboard",
         "timezone": "browser",
         "schemaVersion": 38,
         "version": 1,
@@ -10,133 +8,136 @@
         "panels": [
             {
                 "type": "graph",
-                "title": "Request Rate (req/s)",
+                "title": "Scrape Duration (GitHub)",
                 "id": 1,
-                "datasource": {
-                    "type": "prometheus",
-                    "uid": "712e330d319a"
-                },
+                "datasource": { "type": "prometheus", "uid": "efb6ae24e9b0" },
                 "targets": [
                     {
-                        "expr": "rate(http_server_requests_seconds_count{job=~\"$job\", outcome=\"SUCCESS\"}[1m])",
-                        "legendFormat": "Request Rate",
-                        "refId": "A"
-                    }
-                ],
-                "gridPos": {
-                    "h": 8,
-                    "w": 24,
-                    "x": 0,
-                    "y": 0
-                }
-            },
-            {
-                "type": "graph",
-                "title": "Error Rate",
-                "id": 2,
-                "datasource": {
-                    "type": "prometheus",
-                    "uid": "712e330d319a"
-                },
-                "targets": [
-                    {
-                        "expr": "rate(bot_errors_count_total{job=~\"$job\"}[1m])",
-                        "legendFormat": "Error Rate (Bot)",
+                        "expr": "histogram_quantile(0.50, sum(rate(scrape_duration_seconds_bucket{type=\"github\"}[1m])) by (le))",
+                        "legendFormat": "p50 github",
                         "refId": "A"
                     },
                     {
-                        "expr": "rate(http_server_requests_seconds_count{job=~\"$job\", outcome=\"SERVER_ERROR\"}[1m])",
-                        "legendFormat": "Error Rate (Scrapper)",
-                        "refId": "B"
-                    }
-                ],
-                "gridPos": {
-                    "h": 8,
-                    "w": 24,
-                    "x": 0,
-                    "y": 8
-                }
-            },
-            {
-                "type": "graph",
-                "title": "Latency (p50/p95/p99)",
-                "id": 3,
-                "datasource": {
-                    "type": "prometheus",
-                    "uid": "712e330d319a"
-                },
-                "targets": [
-                    {
-                        "expr": "histogram_quantile(0.50, sum(rate(bot_update_processing_seconds_bucket{job=~\"$job\", status=\"success\"}[1m])) by (le))",
-                        "legendFormat": "p50 (Bot)",
-                        "refId": "A"
-                    },
-                    {
-                        "expr": "histogram_quantile(0.95, sum(rate(bot_update_processing_seconds_bucket{job=~\"$job\", status=\"success\"}[1m])) by (le))",
-                        "legendFormat": "p95 (Bot)",
+                        "expr": "histogram_quantile(0.95, sum(rate(scrape_duration_seconds_bucket{type=\"github\"}[1m])) by (le))",
+                        "legendFormat": "p95 github",
                         "refId": "B"
                     },
                     {
-                        "expr": "histogram_quantile(0.99, sum(rate(bot_update_processing_seconds_bucket{job=~\"$job\", status=\"success\"}[1m])) by (le))",
-                        "legendFormat": "p99 (Bot)",
+                        "expr": "histogram_quantile(0.99, sum(rate(scrape_duration_seconds_bucket{type=\"github\"}[1m])) by (le))",
+                        "legendFormat": "p99 github",
                         "refId": "C"
-                    },
-                    {
-                        "expr": "histogram_quantile(0.50, sum(rate(scrape_duration_seconds_bucket{job=~\"$job\", type=\"github\"}[1m])) by (le))",
-                        "legendFormat": "p50 (Scrapper GitHub)",
-                        "refId": "D"
-                    },
-                    {
-                        "expr": "histogram_quantile(0.95, sum(rate(scrape_duration_seconds_bucket{job=~\"$job\", type=\"github\"}[1m])) by (le))",
-                        "legendFormat": "p95 (Scrapper GitHub)",
-                        "refId": "E"
-                    },
-                    {
-                        "expr": "histogram_quantile(0.99, sum(rate(scrape_duration_seconds_bucket{job=~\"$job\", type=\"github\"}[1m])) by (le))",
-                        "legendFormat": "p99 (Scrapper GitHub)",
-                        "refId": "F"
-                    },
-                    {
-                        "expr": "histogram_quantile(0.50, sum(rate(scrape_duration_seconds_bucket{job=~\"$job\", type=\"stackoverflow\"}[1m])) by (le))",
-                        "legendFormat": "p50 (Scrapper StackOverflow)",
-                        "refId": "G"
-                    },
-                    {
-                        "expr": "histogram_quantile(0.95, sum(rate(scrape_duration_seconds_bucket{job=~\"$job\", type=\"stackoverflow\"}[1m])) by (le))",
-                        "legendFormat": "p95 (Scrapper StackOverflow)",
-                        "refId": "H"
-                    },
-                    {
-                        "expr": "histogram_quantile(0.99, sum(rate(scrape_duration_seconds_bucket{job=~\"$job\", type=\"stackoverflow\"}[1m])) by (le))",
-                        "legendFormat": "p99 (Scrapper StackOverflow)",
-                        "refId": "I"
                     }
                 ],
-                "gridPos": {
-                    "h": 16,
-                    "w": 24,
-                    "x": 0,
-                    "y": 16
-                }
+                "gridPos": { "h": 8, "w": 24, "x": 0, "y": 0 }
+            },
+            {
+                "type": "graph",
+                "title": "Scrape Duration (StackOverflow)",
+                "id": 2,
+                "datasource": { "type": "prometheus", "uid": "efb6ae24e9b0" },
+                "targets": [
+                    {
+                        "expr": "histogram_quantile(0.50, sum(rate(scrape_duration_seconds_bucket{type=\"stackoverflow\"}[1m])) by (le))",
+                        "legendFormat": "p50 stackoverflow",
+                        "refId": "A"
+                    },
+                    {
+                        "expr": "histogram_quantile(0.95, sum(rate(scrape_duration_seconds_bucket{type=\"stackoverflow\"}[1m])) by (le))",
+                        "legendFormat": "p95 stackoverflow",
+                        "refId": "B"
+                    },
+                    {
+                        "expr": "histogram_quantile(0.99, sum(rate(scrape_duration_seconds_bucket{type=\"stackoverflow\"}[1m])) by (le))",
+                        "legendFormat": "p99 stackoverflow",
+                        "refId": "C"
+                    }
+                ],
+                "gridPos": { "h": 8, "w": 24, "x": 0, "y": 8 }
+            },
+            {
+                "type": "graph",
+                "title": "Scrapper Errors by Type",
+                "id": 3,
+                "datasource": { "type": "prometheus", "uid": "efb6ae24e9b0" },
+                "targets": [
+                    {
+                        "expr": "scrapper_errors_total",
+                        "legendFormat": "{{type}}",
+                        "refId": "A"
+                    }
+                ],
+                "gridPos": { "h": 8, "w": 24, "x": 0, "y": 16 }
+            },
+            {
+                "type": "graph",
+                "title": "Active Links by Type",
+                "id": 4,
+                "datasource": { "type": "prometheus", "uid": "efb6ae24e9b0" },
+                "targets": [
+                    {
+                        "expr": "active_links_count",
+                        "legendFormat": "{{type}}",
+                        "refId": "A"
+                    }
+                ],
+                "gridPos": { "h": 8, "w": 24, "x": 0, "y": 24 }
+            },
+            {
+                "type": "graph",
+                "title": "Bot Message Rate",
+                "id": 5,
+                "datasource": { "type": "prometheus", "uid": "efb6ae24e9b0" },
+                "targets": [
+                    {
+                        "expr": "rate(bot_messages_total[1m])",
+                        "legendFormat": "messages/sec",
+                        "refId": "A"
+                    }
+                ],
+                "gridPos": { "h": 8, "w": 24, "x": 0, "y": 32 }
+            },
+            {
+                "type": "graph",
+                "title": "Bot Errors",
+                "id": 6,
+                "datasource": { "type": "prometheus", "uid": "efb6ae24e9b0" },
+                "targets": [
+                    {
+                        "expr": "bot_errors_total",
+                        "legendFormat": "Total Errors",
+                        "refId": "A"
+                    }
+                ],
+                "gridPos": { "h": 8, "w": 24, "x": 0, "y": 40 }
+            },
+            {
+                "type": "graph",
+                "title": "Bot Update Processing Time",
+                "id": 7,
+                "datasource": { "type": "prometheus", "uid": "efb6ae24e9b0" },
+                "targets": [
+                    {
+                        "expr": "histogram_quantile(0.50, sum(rate(bot_update_processing_bucket[1m])) by (le))",
+                        "legendFormat": "p50",
+                        "refId": "A"
+                    },
+                    {
+                        "expr": "histogram_quantile(0.95, sum(rate(bot_update_processing_bucket[1m])) by (le))",
+                        "legendFormat": "p95",
+                        "refId": "B"
+                    },
+                    {
+                        "expr": "histogram_quantile(0.99, sum(rate(bot_update_processing_bucket[1m])) by (le))",
+                        "legendFormat": "p99",
+                        "refId": "C"
+                    }
+                ],
+                "gridPos": { "h": 8, "w": 24, "x": 0, "y": 48 }
             }
         ],
-        "time": {
-            "from": "now-15m",
-            "to": "now"
-        },
+        "time": { "from": "now-15m", "to": "now" },
         "templating": {
-            "list": [
-                {
-                    "name": "job",
-                    "type": "query",
-                    "query": "label_values(job)",
-                    "current": {
-                        "text": "scrapper",
-                        "value": "scrapper"
-                    },
-                    "options": []
-                }
-            ]
+            "list": []
         }
     },
     "overwrite": true
