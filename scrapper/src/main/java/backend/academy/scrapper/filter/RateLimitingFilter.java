@@ -10,6 +10,8 @@ import java.io.IOException;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
@@ -17,6 +19,7 @@ import org.springframework.web.filter.OncePerRequestFilter;
 @Component
 @Order(1)
 public class RateLimitingFilter extends OncePerRequestFilter {
+    private static final Logger LOGGER = LoggerFactory.getLogger(RateLimitingFilter.class);
     private final ObjectMapper objectMapper;
     private final RateLimitingConfig config;
     private final Map<String, RequestCount> requestCounts = new ConcurrentHashMap<>();
@@ -35,8 +38,8 @@ public class RateLimitingFilter extends OncePerRequestFilter {
             clientId = request.getRemoteAddr();
         }
 
-        System.out.println("RateLimitingFilter: Processing request for " + request.getRequestURI());
-        System.out.println("Client ID: " + clientId);
+        LOGGER.debug("Processing request for {}", request.getRequestURI());
+        LOGGER.debug("Client ID: {}", clientId);
 
         // Защита от изменений clientId в процессе обработки
         final String finalClientId = clientId;
@@ -51,19 +54,19 @@ public class RateLimitingFilter extends OncePerRequestFilter {
         synchronized (requestCount) {
             // Если временное окно истекло, сбрасываем счетчик
             if (currentTime - requestCount.getStartTime() > config.getWindowSeconds() * 1000L) {
+                LOGGER.debug("Resetting request count for client {} as window has expired", finalClientId);
                 requestCount.reset(currentTime);
             }
 
             // Увеличиваем счетчик и получаем текущее значение
             currentCount = requestCount.incrementAndGet();
 
-            System.out.println("Request count for " + finalClientId + ": " + currentCount + ", limit: "
-                    + config.getRequestLimit());
+            LOGGER.debug("Request count for {}: {}, limit: {}", finalClientId, currentCount, config.getRequestLimit());
         }
 
         // Проверяем, не превышен ли лимит запросов
         if (currentCount > config.getRequestLimit()) {
-            System.out.println("Rate limit exceeded for client: " + finalClientId);
+            LOGGER.warn("Rate limit exceeded for client: {}", finalClientId);
             response.setStatus(429);
             response.setHeader("Retry-After", String.valueOf(config.getWindowSeconds()));
             response.setContentType("application/json");
@@ -83,7 +86,7 @@ public class RateLimitingFilter extends OncePerRequestFilter {
     // Метод для тестов - очищает счетчики запросов
     public void clearRequestCountsForTest() {
         requestCounts.clear();
-        System.out.println("Request counts cleared for test");
+        LOGGER.debug("Request counts cleared for test");
     }
 
     // Класс для хранения информации о количестве запросов

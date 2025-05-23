@@ -1,11 +1,15 @@
 app:
   telegram-token: ${APP_TELEGRAM_TOKEN}
+  batch:
+    notification-cron: "0 0 10 * * ?"
 scrapper:
   api:
     base-url: ${SCRAPPER_API_BASE_URL:http://scrapper:8081/api}
     actuator-url: ${SCRAPPER_ACTUATOR_URL:http://scrapper:8081/actuator}
 
 spring:
+  main:
+    allow-bean-definition-overriding: true
   datasource:
     url: jdbc:postgresql://postgresql:5432/scrapper
     username: exsellent
@@ -17,6 +21,8 @@ spring:
     name: bot
   jackson:
     time-zone: UTC
+  jpa:
+    open-in-view: false
   kafka:
     bootstrap-servers: kafka:9092
     consumer:
@@ -50,3 +56,6 @@ retry:
 rate-limiting:
   request-limit: 100
   window-seconds: 60
+conversation:
+  timeout:
+    minutes: 15

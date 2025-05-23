@@ -1,4 +1,3 @@
-
 services:
   postgresql:
     image: postgres:17
@@ -21,13 +20,13 @@ services:
 
   redis:
     image: redis:7
-    command: [ "redis-server", "/usr/local/etc/redis/redis.conf" ]
+    command: ["redis-server", "/usr/local/etc/redis/redis.conf"]
     volumes:
       - ./redis.conf:/usr/local/etc/redis/redis.conf
     ports:
       - "6379:6379"
     healthcheck:
-      test: [ "CMD", "redis-cli", "ping" ]
+      test: ["CMD", "redis-cli", "ping"]
       interval: 5s
       timeout: 5s
       retries: 5
@@ -116,51 +115,51 @@ services:
       - .env
 
   scrapper:
-      build:
-        context: .
-        dockerfile: Dockerfile
-        args:
-          JAR_FILE: scrapper/target/scrapper.jar
-      ports:
-        - "8082:8081"
-      depends_on:
-        postgresql:
-          condition: service_healthy
-        kafka-setup:
-          condition: service_completed_successfully
-      environment:
-        - SPRING_DATASOURCE_URL=jdbc:postgresql://postgresql:5432/scrapper
-        - SPRING_DATASOURCE_USERNAME=postgres
-        - SPRING_DATASOURCE_PASSWORD=${POSTGRES_PASSWORD}
-        - SPRING_DATASOURCE_DRIVER_CLASS_NAME=org.postgresql.Driver
-        - SPRING_REDIS_HOST=redis
-        - SPRING_REDIS_PORT=6379
-        - APP_DATABASE_ACCESS_TYPE=JDBC
-        - SPRING_LIQUIBASE_ENABLED=false
-        - APP_CHECK_INTERVAL_MINUTES=5
-        - APP_KAFKA_TOPICS_LINK_UPDATES=link-updates
-        - APP_MESSAGE_TRANSPORT=Kafka
-        - APP_KAFKA_TOPICS_NOTIFICATIONS=link-updates
-        - APP_KAFKA_TOPICS_DLQ=link-updates-dlq
-        - APP_KAFKA_TOPICS_LINK_COMMANDS=link-commands
-        - SCRAPPER_BOT_GITHUB_TOKEN=your_github_token_here
-        - SPRING_KAFKA_BOOTSTRAP_SERVERS=kafka:9092
-        - SERVER_STARTUP_DELAY=30000
-        - SERVER_ADDRESS=0.0.0.0
-        - LOGGING_LEVEL_ROOT=INFO
-        - APP_TELEGRAM_TOKEN=7394729669:AAESKNso0R1AaRZRxN3zFYGeMq3FbEZ69cw
-      command: [ "java", "-jar", "/app/app.jar" ]
-      healthcheck:
-        test: [ "CMD-SHELL", "curl -f http://localhost:8081/actuator/health || exit 1" ]
-        interval: 10s
-        timeout: 5s
-        retries: 10
-        start_period: 60s
-      networks:
-        - backend
-      restart: unless-stopped
-      env_file:
-        - .env
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        JAR_FILE: scrapper/target/scrapper.jar
+    ports:
+      - "8082:8081"  # Основной порт
+      - "8083:8082"  # Actuator
+    depends_on:
+      postgresql:
+        condition: service_healthy
+      kafka-setup:
+        condition: service_completed_successfully
+    environment:
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://postgresql:5432/scrapper
+      - SPRING_DATASOURCE_USERNAME=postgres
+      - SPRING_DATASOURCE_PASSWORD=${POSTGRES_PASSWORD}
+      - SPRING_DATASOURCE_DRIVER_CLASS_NAME=org.postgresql.Driver
+      - SPRING_REDIS_HOST=redis
+      - SPRING_REDIS_PORT=6379
+      - APP_DATABASE_ACCESS_TYPE=JDBC
+      - SPRING_LIQUIBASE_ENABLED=false
+      - APP_CHECK_INTERVAL_MINUTES=5
+      - APP_KAFKA_TOPICS_LINK_UPDATES=link-updates
+      - APP_MESSAGE_TRANSPORT=Kafka
+      - APP_KAFKA_TOPICS_NOTIFICATIONS=link-updates
+      - APP_KAFKA_TOPICS_DLQ=link-updates-dlq
+      - APP_KAFKA_TOPICS_LINK_COMMANDS=link-commands
+      - SPRING_KAFKA_BOOTSTRAP_SERVERS=kafka:9092
+      - SERVER_STARTUP_DELAY=30000
+      - SERVER_ADDRESS=0.0.0.0
+      - LOGGING_LEVEL_ROOT=INFO
+      - RETRY_RETRYABLE_STATUS_CODES=500,502,503,504  # Добавляем свойство
+    command: [ "java", "-jar", "/app/app.jar" ]
+    healthcheck:
+      test: [ "CMD-SHELL", "curl -f http://localhost:8081/actuator/health || exit 1" ]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    networks:
+      - backend
+    restart: unless-stopped
+    env_file:
+      - .env
 
 
   bot:
@@ -203,19 +202,19 @@ services:
       - LOGGING_LEVEL_ORG_APACHE_KAFKA=INFO
       - MANAGEMENT_ENDPOINTS_WEB_EXPOSURE_INCLUDE=health,info
       - MANAGEMENT_HEALTH_SHOW_DETAILS=always
-    command: [ "java", "-jar", "/app/app.jar" ]
+    command: ["java", "-jar", "/app/app.jar"]
     networks:
       - backend
     restart: unless-stopped
     env_file:
       - bot/.env
     healthcheck:
-      test: [ "CMD-SHELL", "curl -f http://localhost:8080/actuator/health || exit 1" ]
+      test: ["CMD-SHELL", "curl -f http://localhost:8080/actuator/health || exit 1"]
       interval: 10s
       timeout: 5s
       retries: 10
       start_period: 60s
 
 networks:
-    backend:
-      driver: bridge
+  backend:
+    driver: bridge
