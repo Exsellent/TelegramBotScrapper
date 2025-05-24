@@ -518,6 +518,8 @@
                         <targetJdk>17</targetJdk>
                         <printFailingErrors>true</printFailingErrors>
                         <linkXRef>false</linkXRef>
+                        <minimumTokens>200</minimumTokens>
+                        <ignoreAnnotations>true</ignoreAnnotations>
                         <rulesets>
                             <ruleset>${maven.multiModuleProjectDirectory}/pmd.xml</ruleset>
                         </rulesets>

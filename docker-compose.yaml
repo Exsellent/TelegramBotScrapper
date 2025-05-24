@@ -208,7 +208,7 @@ services:
       - MANAGEMENT_SERVER_PORT=8082
     command: ["java", "-jar", "/app/app.jar"]
     healthcheck:
-      test: ["CMD-SHELL", "curl -f http://localhost:8082/actuator/health || exit 1"]  # Согласован с 8082
+      test: ["CMD-SHELL", "curl -f http://localhost:8082/actuator/health || exit 1"]
       interval: 10s
       timeout: 5s
       retries: 10

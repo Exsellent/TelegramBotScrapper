@@ -25,8 +25,8 @@ public class JdbcLinkService implements LinkService {
 
     private final LinkDao linkDao;
     private final MeterRegistry meterRegistry;
-    private final GitHubService gitHubService; // Добавлено
-    private final StackOverflowService stackOverflowService; // Добавлено
+    private final GitHubService gitHubService;
+    private final StackOverflowService stackOverflowService;
 
     private static final String NOT_FOUND = " not found.";
 
@@ -115,6 +115,7 @@ public class JdbcLinkService implements LinkService {
         return linkDao.findLinksByTag(tagName);
     }
 
+    @SuppressWarnings("CPD-START")
     @Override
     public void registerActiveLinksMetrics() {
         Collection<LinkDTO> links = linkDao.findAll();

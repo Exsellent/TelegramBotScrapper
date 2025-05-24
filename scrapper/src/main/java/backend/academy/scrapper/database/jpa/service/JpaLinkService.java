@@ -18,8 +18,8 @@ public class JpaLinkService implements LinkService {
 
     private final LinkDao linkDao;
     private final MeterRegistry meterRegistry;
-    private final GitHubService gitHubService; // Добавлено
-    private final StackOverflowService stackOverflowService; // Добавлено
+    private final GitHubService gitHubService;
+    private final StackOverflowService stackOverflowService;
 
     public JpaLinkService(
             LinkDao linkDao,
@@ -110,6 +110,7 @@ public class JpaLinkService implements LinkService {
         linkDao.removeTagFromLink(linkId, tagName);
     }
 
+    @SuppressWarnings("CPD-START")
     @Override
     public Collection<LinkDTO> findLinksByTag(String tagName) {
         return linkDao.findLinksByTag(tagName);
