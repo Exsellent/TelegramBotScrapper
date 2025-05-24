@@ -2,16 +2,18 @@
 
 ---
 
+---
+
 # Link Tracker
 
 Проект создан в рамках курса "Академия Бэкенда".
 Telegram-бот для отслеживания обновлений по ссылкам на GitHub и StackOverflow.
-Проект написан на `Java 23` с использованием `Spring Boot 3.4.2` и состоит на данный момент из двух приложений:
+Проект написан на `Java 23` с использованием `Spring Boot 3.4.2` и состоит из двух приложений:
 - **Bot**: Telegram-бот для взаимодействия с пользователем.
 - **Scrapper**: Сервис для обработки ссылок, проверки обновлений и отправки уведомлений.
 
-Для работы требуются PostgreSQL, Kafka и Redis. Миграции базы данных выполняются через Liquibase.
-Тесты используют Testcontainers.
+Для работы требуются PostgreSQL, Kafka, Redis, Prometheus и Grafana.
+Миграции базы данных выполняются через Liquibase. Тесты используют Testcontainers.
 
 В третьем модуле реализовано:
 - асинхронное взаимодействие между `bot` и `scrapper` через Kafka,
@@ -22,6 +24,13 @@ Telegram-бот для отслеживания обновлений по ссы
 - конфигурация выбора транспорта (`Kafka`/`HTTP`),
 - тегирование ссылок,
 - поддержка `JDBC` и `JPA` (выбор через `app.database-access-type`).
+
+В пятом модуле добавлен мониторинг:
+
+- Метрики через Micrometer и Prometheus.
+- Дашборды в Grafana (RED-метрики, использование памяти, бизнес-метрики).
+- Эндпоинты `/metrics` на портах `8083` (scrapper) и `8084` (bot).
+- Тесты метрик с использованием Testcontainers.
 
 ---
 
@@ -68,7 +77,25 @@ Scrapper отправляет детализированные уведомле�
 
 - Пользователи задают фильтры в `/track` (формат `key:value`, например, `user:a.s.biryukov`)
   для игнорирования обновлений.
-  Фильтры сохраняются в базе (`ChatLink`) и частично применяются при проверке обновлений
+- Фильтры сохраняются в базе (`ChatLink`) и частично применяются при проверке обновлений.
+
+### Мониторинг (Модуль 5)
+
+- **Метрики**:
+  - `bot_messages_total`: Количество сообщений, обработанных ботом (скорость: `rate(bot_messages_total[5m])`).
+  - `scrapper.links.active`: Количество активных ссылок в БД по типу (`github`, `stackoverflow`).
+  - `scrape_duration_seconds`: Время выполнения scrape для GitHub и StackOverflow (p50, p95, p99).
+  - `jvm_memory_used_bytes`: Использование памяти JVM (heap, non-heap).
+  - RED-метрики: Rate, Errors, Duration для HTTP-запросов.
+- **Инфраструктура**:
+  - Prometheus (`:9090`) собирает метрики через `/actuator/prometheus` (`:8083` для scrapper, `:8084` для bot).
+  - Grafana (`:3001`) отображает дашборды:
+    - Параметризованный дашборд для RED-метрик.
+    - График использования памяти.
+    - Бизнес-метрики (сообщения бота, активные ссылки, время scrape).
+- **Тесты**:
+  - `BotMetricsTest`: Проверяет `bot_messages_total`, `bot_errors_total`, `bot_update_processing`.
+  - `LinkMetricsTest`: Проверяет `scrapper_errors_total`, `scrapper.links.active`, `scrape_duration_seconds`.
 
 ---
 
@@ -76,18 +103,21 @@ Scrapper отправляет детализированные уведомле�
 
 ### Компоненты
 
-- `bot` — Telegram-бот, принимает команды, кеширует список ссылок.
-- `scrapper` — обрабатывает ссылки, отслеживает обновления, отправляет уведомления.
+- `bot` — Telegram-бот, принимает команды, кэширует список ссылок.
+- `scrapper` — обрабатывает ссылки, отслеживает обновления, отправляет уведомления, регистрирует метрики.
 - Kafka используется для связи между компонентами.
 - Redis — кэш и накопление уведомлений.
+- Prometheus — сбор метрик.
+- Grafana — визуализация дашбордов.
 
 ---
 
 ## 🧪 Тестирование
 
 Тесты используют Testcontainers:
-- PostgreSQL, Kafka, Redis запускаются автоматически.
-- Проверяется: Kafka, Redis, DLQ, фильтры, тегирование, дайджест, JDBC и JPA.
+
+- PostgreSQL, Kafka, Redis, Prometheus запускаются автоматически.
+- Проверяется: Kafka, Redis, DLQ, фильтры, тегирование, дайджест, JDBC, JPA, метрики.
 
 Запуск тестов:
 
@@ -150,6 +180,13 @@ spring:
         redis:
             host: redis
             port: 6379
+management:
+    server:
+        port: 8083  # Для scrapper (8084 для bot)
+    endpoints:
+        web:
+            exposure:
+                include: prometheus,health
 ```
 
 ---
@@ -158,10 +195,10 @@ spring:
 
 ### 🔧 1. Запуск инфраструктуры
 
-Запустите PostgreSQL, Kafka и Redis через Docker:
+Запустите PostgreSQL, Kafka, Redis, Prometheus и Grafana через Docker:
 
 ```bash
-docker-compose up -d postgresql kafka redis
+docker-compose up -d postgresql kafka redis prometheus grafana
 ```
 
 Примените миграции Liquibase:
@@ -202,7 +239,10 @@ cd scrapper
 mvn spring-boot:run
 ```
 
-Порт: **8082**
+Порты:
+
+- Приложение: **8082**
+- Метрики: **8083**
 
 ---
 
@@ -220,7 +260,20 @@ cd ../bot
 mvn spring-boot:run
 ```
 
-Порт: **8080**
+Порты:
+
+- Приложение: **8080**
+- Метрики: **8084**
+
+---
+
+### 📊 4. Доступ к мониторингу
+
+- **Prometheus**: [http://localhost:9090](http://localhost:9090)
+- **Grafana**: [http://localhost:3001](http://localhost:3001)
+- **Метрики**:
+  - Scrapper: `curl http://localhost:8083/actuator/prometheus`
+  - Bot: `curl http://localhost:8084/actuator/prometheus`
 
 ---
 
@@ -239,7 +292,7 @@ java-Exsellent/
 │       │       ├── dto/               # DTO-объекты
 │       │       ├── exception/         # Кастомные исключения
 │       │       ├── insidebot/         # TelegramBotService и логика бота
-│       │       ├── service/           # KafkaService, RedisCacheService![img.png](img.png), NotificationBatchService и др.
+│       │       ├── service/           # KafkaService, RedisCacheService, NotificationBatchService и др.
 │       │       └── utils/             # Парсеры ссылок
 │       └── resources/
 │           ├── application.yaml       # Конфигурация
@@ -274,7 +327,7 @@ java-Exsellent/
 │       ├── 007_create_link_tags.sql
 │       └── ...
 
-├── docker-compose.yaml         # Инфраструктура: PostgreSQL, Redis, Kafka
+├── docker-compose.yaml         # Инфраструктура: PostgreSQL, Redis, Kafka, Prometheus, Grafana
 ├── Dockerfile.migrations       # Dockerfile для Liquibase миграций
 ├── README.md                   # Документация
 ├── pom.xml                     # Maven конфигурация (мульти-модуль)
@@ -286,7 +339,11 @@ java-Exsellent/
 ## 📊 Интеграции
 
 - Swagger UI: [http://localhost:8082/swagger-ui](http://localhost:8082/swagger-ui)
-- Actuator: `curl http://localhost:8082/api/actuator/health`
+- Actuator:
+  - Scrapper: `curl http://localhost:8083/actuator/health`
+  - Bot: `curl http://localhost:8084/actuator/health`
+- Prometheus: [http://localhost:9090](http://localhost:9090)
+- Grafana: [http://localhost:3001](http://localhost:3001)
 
 ---
 
@@ -304,6 +361,8 @@ docker-compose down
 - Redis используется для кэширования (`tracked-links:<chatId>`) и накопления (`notifications:<chatId>`).
 - Расписание дайджеста настраивается в `application.yaml`.
 - Фильтры хранятся в JSON-поле `filters` у `ChatLink`.
+- Линтеры (CPD) настраиваются через `pom.xml` (`minimumTokens=200`).
+- CI/CD настроен через GitHub Actions.
 
 ---
 
