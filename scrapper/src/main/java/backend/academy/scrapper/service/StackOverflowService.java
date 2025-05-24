@@ -4,9 +4,13 @@ import backend.academy.scrapper.client.stackoverflow.StackOverflowClient;
 import backend.academy.scrapper.dto.AnswerResponse;
 import backend.academy.scrapper.dto.CombinedStackOverflowInfo;
 import backend.academy.scrapper.dto.QuestionResponse;
+import io.micrometer.core.instrument.MeterRegistry;
+import io.micrometer.core.instrument.Timer;
 import java.time.OffsetDateTime;
 import java.util.Collections;
 import java.util.List;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Flux;
@@ -16,11 +20,17 @@ import reactor.core.publisher.Mono;
 public class StackOverflowService {
     private final StackOverflowClient stackOverflowClient;
     private final ChatService chatService;
+    private final Timer scrapeTimer;
 
     @Autowired
-    public StackOverflowService(StackOverflowClient stackOverflowClient, ChatService chatService) {
+    public StackOverflowService(
+            StackOverflowClient stackOverflowClient, ChatService chatService, MeterRegistry meterRegistry) {
         this.stackOverflowClient = stackOverflowClient;
         this.chatService = chatService;
+        this.scrapeTimer = Timer.builder("scrape_duration_seconds")
+                .tag("type", "stackoverflow")
+                .publishPercentiles(0.5, 0.95, 0.99)
+                .register(meterRegistry);
     }
 
     public void registerChat(long chatId) {
@@ -52,12 +62,6 @@ public class StackOverflowService {
         return stackOverflowClient.fetchAnswersInfo(questionIds);
     }
 
-    /**
-     * Получает комбинированную информацию о вопросе и его ответах.
-     *
-     * @param questionId идентификатор вопроса
-     * @return Mono с комбинированной информацией
-     */
     public Mono<CombinedStackOverflowInfo> getCombinedInfo(String questionId) {
         Mono<QuestionResponse> questionMono = getQuestionInfo(questionId);
         Mono<List<AnswerResponse>> answersMono = getAnswersForQuestion(questionId);
@@ -73,12 +77,19 @@ public class StackOverflowService {
         });
     }
 
-    /**
-     * Возвращает клиент StackOverflow для очистки кэша.
-     *
-     * @return StackOverflowClient
-     */
     public StackOverflowClient getStackOverflowClient() {
         return stackOverflowClient;
+    }
+
+    public void fetchUpdates(String url) {
+        scrapeTimer.record(() -> {
+            // Парсим URL, например: https://stackoverflow.com/questions/123456/title
+            Pattern pattern = Pattern.compile("https://stackoverflow\\.com/questions/(\\d+)/.*");
+            Matcher matcher = pattern.matcher(url);
+            if (matcher.matches()) {
+                String questionId = matcher.group(1);
+                getCombinedInfo(questionId).block(); // Блокируем для синхронного вызова
+            }
+        });
     }
 }

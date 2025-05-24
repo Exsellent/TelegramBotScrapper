@@ -25,4 +25,8 @@ public interface LinkService {
     void removeTagFromLink(Long linkId, String tagName);
 
     Collection<LinkDTO> findLinksByTag(String tagName);
+
+    void registerActiveLinksMetrics();
+
+    void checkLinkUpdates();
 }

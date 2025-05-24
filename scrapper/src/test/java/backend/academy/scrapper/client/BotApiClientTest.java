@@ -10,6 +10,7 @@ import com.github.tomakehurst.wiremock.core.WireMockConfiguration;
 import io.github.resilience4j.circuitbreaker.CircuitBreakerConfig;
 import io.github.resilience4j.circuitbreaker.CircuitBreakerRegistry;
 import java.time.Duration;
+import java.util.Arrays;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -33,14 +34,16 @@ class BotApiClientTest {
 
         CircuitBreakerConfig circuitBreakerConfig = CircuitBreakerConfig.custom()
                 .failureRateThreshold(50)
-                .slidingWindowSize(4)
-                .minimumNumberOfCalls(4)
+                .slidingWindowSize(2) // Уменьшаем до 2
+                .minimumNumberOfCalls(2) // Уменьшаем до 2, чтобы CircuitBreaker сработал быстрее
                 .waitDurationInOpenState(Duration.ofSeconds(5))
                 .build();
 
         CircuitBreakerRegistry circuitBreakerRegistry = CircuitBreakerRegistry.of(circuitBreakerConfig);
 
-        botApiClient = new BotApiClient(webClient, 2, 1L, circuitBreakerRegistry);
+        ResilienceUtils resilienceUtils = new ResilienceUtils(2, 1L, Arrays.asList(500, 502, 503, 504, 429));
+
+        botApiClient = new BotApiClient(webClient, resilienceUtils, circuitBreakerRegistry);
     }
 
     @AfterEach
@@ -55,17 +58,16 @@ class BotApiClientTest {
 
         LinkUpdateRequest request = new LinkUpdateRequest();
 
-        // Первая попытка: срабатывает 2 ретрая, потом fallback (Mono.empty)
-        StepVerifier.create(botApiClient.postUpdate(request)).verifyComplete(); // fallback -> Mono.empty()
+        // Первая попытка: 2 ретрая, затем fallback
+        StepVerifier.create(botApiClient.postUpdate(request)).verifyComplete();
 
-        // Вызов еще раз, чтобы добиться открытия CircuitBreaker
-        StepVerifier.create(botApiClient.postUpdate(request)).verifyComplete(); // fallback снова
+        // Вторая попытка: CircuitBreaker должен сработать (2 вызова, 50% failure rate)
+        StepVerifier.create(botApiClient.postUpdate(request)).verifyComplete();
 
-        // После нескольких неудач CircuitBreaker должен быть открыт
-        StepVerifier.create(botApiClient.postUpdate(request))
-                .verifyComplete(); // запрос даже не пойдет, т.к. CircuitBreaker открыт
+        // Третья попытка: CircuitBreaker уже открыт
+        StepVerifier.create(botApiClient.postUpdate(request)).verifyComplete();
 
-        // Проверить что CircuitBreaker действительно открылся
+        // Проверяем, что CircuitBreaker открыт
         assert botApiClient.getCircuitBreaker().getState()
                 == io.github.resilience4j.circuitbreaker.CircuitBreaker.State.OPEN;
     }

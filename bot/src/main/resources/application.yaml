@@ -1,11 +1,15 @@
 app:
   telegram-token: ${APP_TELEGRAM_TOKEN}
+  batch:
+    notification-cron: "0 0 10 * * ?"  #  для уведомлений
 scrapper:
   api:
     base-url: ${SCRAPPER_API_BASE_URL:http://scrapper:8081/api}
     actuator-url: ${SCRAPPER_ACTUATOR_URL:http://scrapper:8082/actuator}
 
 spring:
+  main:
+    allow-bean-definition-overriding: true
   datasource:
     url: jdbc:postgresql://postgresql:5432/scrapper
     username: exsellent
@@ -17,6 +21,8 @@ spring:
     name: bot
   jackson:
     time-zone: UTC
+  jpa:
+    open-in-view: false  # Из 4-й части, для оптимизации
   kafka:
     bootstrap-servers: kafka:9092
     consumer:
@@ -31,6 +37,7 @@ spring:
 
 server:
   port: 8080
+
 logging:
   level:
     org.springframework.core.env: TRACE
@@ -38,23 +45,32 @@ logging:
     org.apache.kafka: DEBUG
     org.springframework.boot.actuate.endpoint.web.servlet: DEBUG
     io.micrometer.prometheus: DEBUG
+
 springdoc:
   swagger-ui:
     path: /swagger-ui
+
 http:
   client:
     connectTimeout: 5000
     readTimeout: 10000
+
 retry:
   max-attempts: 5
   first-backoff-seconds: 5
   retryable-status-codes: [500, 502, 503, 504, 429]
+
 rate-limiting:
   request-limit: 100
   window-seconds: 60
+
+conversation:
+  timeout:
+    minutes: 15  #  для сессий
+
 management:
   server:
-    port: 8082  # Отдельный порт для Actuator # было 8081
+    port: 8082  #  отдельный порт для Actuator
   endpoints:
     web:
       base-path: /actuator

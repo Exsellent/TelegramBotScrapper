@@ -1,4 +1,3 @@
-
 services:
   postgresql:
     image: postgres:17
@@ -21,13 +20,13 @@ services:
 
   redis:
     image: redis:7
-    command: [ "redis-server", "/usr/local/etc/redis/redis.conf" ]
+    command: ["redis-server", "/usr/local/etc/redis/redis.conf"]
     volumes:
       - ./redis.conf:/usr/local/etc/redis/redis.conf
     ports:
       - "6379:6379"
     healthcheck:
-      test: [ "CMD", "redis-cli", "ping" ]
+      test: ["CMD", "redis-cli", "ping"]
       interval: 5s
       timeout: 5s
       retries: 5
@@ -114,56 +113,56 @@ services:
       - backend
     env_file:
       - .env
-      - .env
 
   scrapper:
-      build:
-        context: .
-        dockerfile: scrapper.Dockerfile
-        args:
-          JAR_FILE: scrapper/target/scrapper.jar
-      ports:
-        - "8082:8081"  # Основной порт приложения
-        - "8083:8082"  # Actuator
-      depends_on:
-        postgresql:
-          condition: service_healthy
-        kafka-setup:
-          condition: service_completed_successfully
-      environment:
-        - SPRING_DATASOURCE_URL=jdbc:postgresql://postgresql:5432/scrapper
-        - SPRING_DATASOURCE_USERNAME=postgres
-        - SPRING_DATASOURCE_PASSWORD=${POSTGRES_PASSWORD}
-        - SPRING_DATASOURCE_DRIVER_CLASS_NAME=org.postgresql.Driver
-        - SPRING_REDIS_HOST=redis
-        - SPRING_REDIS_PORT=6379
-        - APP_DATABASE_ACCESS_TYPE=JDBC
-        - SPRING_LIQUIBASE_ENABLED=false
-        - APP_CHECK_INTERVAL_MINUTES=5
-        - APP_KAFKA_TOPICS_LINK_UPDATES=link-updates
-        - APP_MESSAGE_TRANSPORT=Kafka
-        - APP_KAFKA_TOPICS_NOTIFICATIONS=link-updates
-        - APP_KAFKA_TOPICS_DLQ=link-updates-dlq
-        - APP_KAFKA_TOPICS_LINK_COMMANDS=link-commands
-        - SCRAPPER_BOT_GITHUB_TOKEN=your_github_token_here
-        - SPRING_KAFKA_BOOTSTRAP_SERVERS=kafka:9092
-        - SERVER_STARTUP_DELAY=30000
-        - SERVER_ADDRESS=0.0.0.0
-        - LOGGING_LEVEL_ROOT=INFO
-        - APP_TELEGRAM_TOKEN=7394729669:AAESKNso0R1AaRZRxN3zFYGeMq3FbEZ69cw
-      command: [ "java", "-jar", "/app/app.jar" ]
-      healthcheck:
-        test: [ "CMD-SHELL", "curl -f http://localhost:8082/actuator/health || exit 1" ]
-        interval: 10s
-        timeout: 5s
-        retries: 10
-        start_period: 60s
-      networks:
-        - backend
-      restart: unless-stopped
-      env_file:
-        - .env
-
+    build:
+      context: .
+      dockerfile: scrapper.Dockerfile
+      args:
+        JAR_FILE: scrapper/target/scrapper.jar
+    ports:
+      - "8082:8081"  # Основной порт
+      - "8083:8082"  # Actuator
+    depends_on:
+      postgresql:
+        condition: service_healthy
+      kafka-setup:
+        condition: service_completed_successfully
+    environment:
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://postgresql:5432/scrapper
+      - SPRING_DATASOURCE_USERNAME=postgres
+      - SPRING_DATASOURCE_PASSWORD=${POSTGRES_PASSWORD}
+      - SPRING_DATASOURCE_DRIVER_CLASS_NAME=org.postgresql.Driver
+      - SPRING_REDIS_HOST=redis
+      - SPRING_REDIS_PORT=6379
+      - APP_DATABASE_ACCESS_TYPE=JDBC
+      - SPRING_LIQUIBASE_ENABLED=false
+      - APP_CHECK_INTERVAL_MINUTES=5
+      - APP_KAFKA_TOPICS_LINK_UPDATES=link-updates
+      - APP_MESSAGE_TRANSPORT=Kafka
+      - APP_KAFKA_TOPICS_NOTIFICATIONS=link-updates
+      - APP_KAFKA_TOPICS_DLQ=link-updates-dlq
+      - APP_KAFKA_TOPICS_LINK_COMMANDS=link-commands
+      - SPRING_KAFKA_BOOTSTRAP_SERVERS=kafka:9092
+      - SERVER_STARTUP_DELAY=30000
+      - SERVER_ADDRESS=0.0.0.0
+      - LOGGING_LEVEL_ROOT=INFO
+      - RETRY_RETRYABLE_STATUS_CODES=500,502,503,504
+      - MANAGEMENT_ENDPOINTS_WEB_EXPOSURE_INCLUDE=health,info,metrics,prometheus
+      - MANAGEMENT_HEALTH_SHOW_DETAILS=always
+      - MANAGEMENT_SERVER_PORT=8082
+    command: ["java", "-jar", "/app/app.jar"]
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8082/actuator/health || exit 1"]  # Из 5-й части, Actuator на 8082
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    networks:
+      - backend
+    restart: unless-stopped
+    env_file:
+      - .env
 
   bot:
     container_name: bot
@@ -173,8 +172,8 @@ services:
       args:
         JAR_FILE: bot/target/link-tracker-bot.jar
     ports:
-      - "8080:8080"  # Основной порт приложения
-      - "8081:8081"  # Actuator
+      - "8080:8080"  # Основной порт
+      - "8084:8082"  # Actuator, исправлено с 8081:8081
     depends_on:
       postgresql:
         condition: service_healthy
@@ -185,7 +184,7 @@ services:
       scrapper:
         condition: service_healthy
     environment:
-      - SPRING_APPLICATION_JSON={"scrapper.api.base-url":"http://scrapper:8081/api"}
+      - SPRING_APPLICATION_JSON={"scrapper.api.base-url":"http://scrapper:8081/api","scrapper.api.actuator-url":"http://scrapper:8082/actuator"}
       - SPRING_DATASOURCE_URL=jdbc:postgresql://postgresql:5432/scrapper
       - SPRING_DATASOURCE_USERNAME=postgres
       - SPRING_DATASOURCE_PASSWORD=${POSTGRES_PASSWORD}
@@ -200,46 +199,65 @@ services:
       - BACKOFF_SETTINGS_MULTIPLIER=2.0
       - BACKOFF_SETTINGS_MAX_RETRIES=10
       - CONNECTION_RETRY_ENABLED=true
-      - SERVER_STARTUP_DELAY=30000
+      - SERVER_STARTUP_DELAY=60000
       - LOGGING_LEVEL_ROOT=INFO
       - LOGGING_LEVEL_ORG_SPRINGFRAMEWORK=INFO
       - LOGGING_LEVEL_ORG_APACHE_KAFKA=INFO
       - MANAGEMENT_ENDPOINTS_WEB_EXPOSURE_INCLUDE=health,info,metrics,prometheus
-      - MANAGEMENT_ENDPOINT_PROMETHEUS_ENABLED=true
-      - MANAGEMENT_METRICS_EXPORT_PROMETHEUS_ENABLED=true
       - MANAGEMENT_HEALTH_SHOW_DETAILS=always
       - MANAGEMENT_SERVER_PORT=8082
-    command: [ "java", "-jar", "/app/app.jar" ]
+    command: ["java", "-jar", "/app/app.jar"]
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8082/actuator/health || exit 1"]  # Согласован с 8082
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 60s
     networks:
       - backend
     restart: unless-stopped
     env_file:
       - bot/.env
-    healthcheck:
-      test: [ "CMD-SHELL", "curl -f http://localhost:8082/actuator/health || exit 1" ]
-      interval: 10s
-      timeout: 5s
-      retries: 10
-      start_period: 60s
 
   prometheus:
-    image: prom/prometheus
+    image: prom/prometheus:latest
     volumes:
       - ./prometheus.yml:/etc/prometheus/prometheus.yml
     ports:
       - "9090:9090"
     networks:
       - backend
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:9090/-/healthy"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
 
   grafana:
-    image: grafana/grafana-oss
+    image: grafana/grafana-oss:latest
     ports:
-      - "3001:3000"
+      - "3001:3000"  # Исправлено с 3000:3000
     environment:
+      - GF_SECURITY_ADMIN_USER=admin
       - GF_SECURITY_ADMIN_PASSWORD=admin
+    volumes:
+      - grafana-data:/var/lib/grafana
+    depends_on:
+      prometheus:
+        condition: service_healthy
     networks:
       - backend
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/api/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
 
 networks:
   backend:
     driver: bridge
+
+volumes:
+  grafana-data:

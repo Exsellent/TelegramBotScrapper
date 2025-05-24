@@ -31,22 +31,24 @@ spring:
     redis:
       host: redis
       port: 6379
+
 management:
   server:
-    port: 8082
+    port: 8082  # отдельный порт для Actuator
   endpoints:
     web:
       base-path: /actuator
       exposure:
         include: health,info,metrics,prometheus
   endpoint:
+    health:
+      show-details: always
     prometheus:
       enabled: true
   prometheus:
     metrics:
       export:
-        enabled: true
-
+        enabled: true  # экспорт метрик
 
 http:
   client:
@@ -129,3 +131,5 @@ logging:
   level:
     org.springframework.boot.actuate: DEBUG
     org.springframework.data.redis: DEBUG
+    root: DEBUG
+    io.micrometer.prometheus: DEBUG  # для отладки метрик

@@ -14,6 +14,7 @@ import backend.academy.scrapper.service.LinkService;
 import backend.academy.scrapper.service.NotificationService;
 import backend.academy.scrapper.service.StackOverflowService;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.micrometer.core.instrument.MeterRegistry;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
@@ -34,13 +35,15 @@ public class JdbcAccessConfiguration {
     }
 
     @Bean
-    public GitHubService gitHubService(GitHubClient gitHubClient, ChatService chatService) {
-        return new GitHubService(gitHubClient, chatService);
+    public GitHubService gitHubService(
+            GitHubClient gitHubClient, ChatService chatService, MeterRegistry meterRegistry) {
+        return new GitHubService(gitHubClient, chatService, meterRegistry);
     }
 
     @Bean
-    public StackOverflowService stackOverflowService(StackOverflowClient stackOverflowClient, ChatService chatService) {
-        return new StackOverflowService(stackOverflowClient, chatService);
+    public StackOverflowService stackOverflowService(
+            StackOverflowClient stackOverflowClient, ChatService chatService, MeterRegistry meterRegistry) {
+        return new StackOverflowService(stackOverflowClient, chatService, meterRegistry);
     }
 
     @Bean

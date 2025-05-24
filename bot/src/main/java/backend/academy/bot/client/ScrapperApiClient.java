@@ -21,12 +21,8 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.ParameterizedTypeReference;
-import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.HttpStatusCode;
-import org.springframework.http.MediaType;
-import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.retry.support.RetryTemplate;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
@@ -42,34 +38,14 @@ public class ScrapperApiClient {
     @Value("${conversation.timeout.minutes:15}")
     private int conversationTimeoutMinutes;
 
-    @Value("${scrapper.api.actuator-url}")
-    private String actuatorUrl;
-
     public ScrapperApiClient(
+            RestClient restClient,
             @Value("${scrapper.api.base-url}") String baseUrl,
-            SimpleClientHttpRequestFactory requestFactory,
-            @Value("${retry.max-attempts:3}") int maxRetries,
-            @Value("${retry.first-backoff-seconds:1}") long backoffSeconds,
+            RetryTemplate retryTemplate,
             @Qualifier("circuitBreakerRegistry") CircuitBreakerRegistry circuitBreakerRegistry) {
+        this.restClient = restClient;
         this.baseUrl = baseUrl;
-        this.restClient = RestClient.builder()
-                .requestFactory(requestFactory)
-                .defaultHeader(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE)
-                .defaultStatusHandler(HttpStatusCode::is4xxClientError, (request, response) -> {
-                    if (response.getStatusCode() == HttpStatus.TOO_MANY_REQUESTS) {
-                        throw new ApiException("Rate limit exceeded: " + response.getStatusCode());
-                    }
-                    throw new ApiException("Client error: " + response.getStatusCode());
-                })
-                .defaultStatusHandler(HttpStatusCode::is5xxServerError, (request, response) -> {
-                    throw new ApiException("Server error: " + response.getStatusCode());
-                })
-                .build();
-        this.retryTemplate = RetryTemplate.builder()
-                .maxAttempts(maxRetries)
-                .fixedBackoff(backoffSeconds * 1000)
-                .retryOn(ApiException.class)
-                .build();
+        this.retryTemplate = retryTemplate;
         this.circuitBreaker = circuitBreakerRegistry.circuitBreaker("scrapperApiClient");
     }
 
@@ -77,10 +53,10 @@ public class ScrapperApiClient {
     public void init() {
         try {
             circuitBreaker.executeSupplier(() -> {
-                LOGGER.debug("Sending request to {}", actuatorUrl + "/health");
+                LOGGER.debug("Sending request to http://scrapper:8081/actuator/health");
                 return restClient
                         .get()
-                        .uri(actuatorUrl + "/health")
+                        .uri("http://scrapper:8081/actuator/health")
                         .retrieve()
                         .onStatus(HttpStatusCode::is5xxServerError, (req, res) -> {
                             String errorBody;
@@ -94,9 +70,9 @@ public class ScrapperApiClient {
                         })
                         .toBodilessEntity();
             });
-            LOGGER.info("The Scrapper API is available at: {}", actuatorUrl);
+            LOGGER.info("The Scrapper API is available at: {}", baseUrl);
         } catch (Exception e) {
-            LOGGER.warn("The Scrapper API is unavailable at: {}. Error: {}", actuatorUrl, e.getMessage(), e);
+            LOGGER.warn("The Scrapper API is unavailable at: {}. Error: {}", baseUrl, e.getMessage(), e);
         }
     }
 

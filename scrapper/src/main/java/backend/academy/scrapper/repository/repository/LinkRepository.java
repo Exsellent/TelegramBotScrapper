@@ -18,5 +18,9 @@ public interface LinkRepository extends JpaRepository<Link, Long> {
     List<Link> findByLastCheckTimeBeforeOrLastCheckTimeIsNull(
             @Param("sinceTime") LocalDateTime sinceTime, Pageable pageable);
 
-    List<Link> findByTags_Name(String tagName); // метод для поиска по тегам
+    List<Link> findByTags_Name(String tagName);
+
+    // Новый метод для подсчета активных ссылок по типу
+    @Query("SELECT COUNT(l) FROM Link l WHERE l.url LIKE :typePattern")
+    long countActiveLinksByType(@Param("typePattern") String typePattern);
 }

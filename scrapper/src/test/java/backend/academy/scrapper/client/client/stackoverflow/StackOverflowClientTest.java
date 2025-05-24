@@ -1,106 +1,139 @@
 package backend.academy.scrapper.client.client.stackoverflow;
 
-import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
-import static com.github.tomakehurst.wiremock.client.WireMock.exactly;
-import static com.github.tomakehurst.wiremock.client.WireMock.get;
-import static com.github.tomakehurst.wiremock.client.WireMock.getRequestedFor;
-import static com.github.tomakehurst.wiremock.client.WireMock.urlMatching;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
+import backend.academy.scrapper.client.ResilienceUtils;
 import backend.academy.scrapper.client.stackoverflow.StackOverflowClientImpl;
 import backend.academy.scrapper.dto.QuestionResponse;
-import com.github.tomakehurst.wiremock.WireMockServer;
-import com.github.tomakehurst.wiremock.client.WireMock;
-import com.github.tomakehurst.wiremock.core.WireMockConfiguration;
-import io.github.resilience4j.circuitbreaker.CircuitBreakerConfig;
+import backend.academy.scrapper.dto.QuestionsApiResponse;
 import io.github.resilience4j.circuitbreaker.CircuitBreakerRegistry;
-import java.time.Duration;
+import java.nio.charset.StandardCharsets;
 import java.util.List;
-import org.junit.jupiter.api.AfterEach;
+import java.util.function.Function;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.web.reactive.function.client.WebClient;
+import org.springframework.web.reactive.function.client.WebClientResponseException;
 import reactor.core.publisher.Mono;
 import reactor.test.StepVerifier;
 
-@ExtendWith(MockitoExtension.class)
-public class StackOverflowClientTest {
+class StackOverflowClientImplTest {
 
-    private WireMockServer wireMockServer;
-    private StackOverflowClientImpl stackOverflowClient;
+    private WebClient webClient;
+    private WebClient.RequestHeadersUriSpec requestHeadersUriSpec;
+    private WebClient.RequestHeadersSpec requestHeadersSpec;
+    private WebClient.ResponseSpec responseSpec;
+
+    private ResilienceUtils resilienceUtils;
+    private StackOverflowClientImpl client;
 
     @BeforeEach
     void setUp() {
-        wireMockServer =
-                new WireMockServer(WireMockConfiguration.wireMockConfig().dynamicPort());
-        wireMockServer.start();
-        WireMock.configureFor("localhost", wireMockServer.port());
+        webClient = mock(WebClient.class);
+        requestHeadersUriSpec = mock(WebClient.RequestHeadersUriSpec.class);
+        requestHeadersSpec = mock(WebClient.RequestHeadersSpec.class);
+        responseSpec = mock(WebClient.ResponseSpec.class);
 
-        WebClient webClient = WebClient.builder()
-                .baseUrl("http://localhost:" + wireMockServer.port())
-                .build();
+        when(webClient.get()).thenReturn(requestHeadersUriSpec);
+        when(requestHeadersUriSpec.uri(any(Function.class))).thenReturn(requestHeadersSpec);
+        when(requestHeadersSpec.retrieve()).thenReturn(responseSpec);
 
-        CircuitBreakerConfig circuitBreakerConfig = CircuitBreakerConfig.custom()
-                .slidingWindowType(CircuitBreakerConfig.SlidingWindowType.COUNT_BASED)
-                .slidingWindowSize(10)
-                .minimumNumberOfCalls(5)
-                .failureRateThreshold(50)
-                .permittedNumberOfCallsInHalfOpenState(3)
-                .waitDurationInOpenState(Duration.ofSeconds(10))
-                .build();
-        CircuitBreakerRegistry circuitBreakerRegistry = CircuitBreakerRegistry.of(circuitBreakerConfig);
-
-        stackOverflowClient = new StackOverflowClientImpl(webClient, 3, 1L, circuitBreakerRegistry);
-    }
-
-    @AfterEach
-    void tearDown() {
-        wireMockServer.resetAll();
-        wireMockServer.stop();
+        resilienceUtils = new ResilienceUtils(3, 0, "503,429");
+        CircuitBreakerRegistry registry = CircuitBreakerRegistry.ofDefaults();
+        client = new StackOverflowClientImpl(webClient, resilienceUtils, registry);
     }
 
     @Test
-    void testFetchQuestionsInfoSuccess() {
-        wireMockServer.stubFor(
-                get(urlMatching("/questions/123.*"))
-                        .willReturn(
-                                aResponse()
-                                        .withStatus(200)
-                                        .withHeader("Content-Type", "application/json")
-                                        .withBody(
-                                                "{\"items\": [{\"question_id\": 123, \"title\": \"Test Question\", \"last_activity_date\": 1577836800}]}")));
+    void shouldHandleNonRetryableErrorWithoutRetry() {
+        WebClient isolatedWebClient = mock(WebClient.class);
+        WebClient.RequestHeadersUriSpec isolatedUriSpec = mock(WebClient.RequestHeadersUriSpec.class);
+        WebClient.RequestHeadersSpec isolatedHeaderSpec = mock(WebClient.RequestHeadersSpec.class);
+        WebClient.ResponseSpec isolatedResponseSpec = mock(WebClient.ResponseSpec.class);
 
-        Mono<List<QuestionResponse>> response = stackOverflowClient.fetchQuestionsInfo(List.of("123"));
+        when(isolatedWebClient.get()).thenReturn(isolatedUriSpec);
+        when(isolatedUriSpec.uri(any(Function.class))).thenReturn(isolatedHeaderSpec);
+        when(isolatedHeaderSpec.retrieve()).thenReturn(isolatedResponseSpec);
 
-        StepVerifier.create(response)
-                .expectNextMatches(questions ->
-                        questions.size() == 1 && questions.get(0).getTitle().equals("Test Question"))
-                .verifyComplete();
+        List<String> ids = List.of("404");
 
-        wireMockServer.verify(1, getRequestedFor(urlMatching("/questions/123.*")));
+        WebClientResponseException nonRetryableException =
+                new WebClientResponseException(404, "Not Found", null, new byte[0], StandardCharsets.UTF_8);
+
+        when(isolatedResponseSpec.bodyToMono(QuestionsApiResponse.class)).thenReturn(Mono.error(nonRetryableException));
+
+        StackOverflowClientImpl isolatedClient =
+                new StackOverflowClientImpl(isolatedWebClient, resilienceUtils, CircuitBreakerRegistry.ofDefaults());
+
+        StepVerifier.create(isolatedClient.fetchQuestionsInfo(ids))
+                .expectError(WebClientResponseException.class)
+                .verify();
+
+        verify(isolatedResponseSpec, times(1)).bodyToMono(QuestionsApiResponse.class);
     }
 
     @Test
-    void testFetchQuestionsInfoCircuitBreaker() {
-        wireMockServer.resetAll();
-        stackOverflowClient.clearCaches(); // Очищаем кэш перед тестом
+    void shouldReturnSuccessfulResponse() {
+        WebClient successWebClient = mock(WebClient.class);
+        WebClient.RequestHeadersUriSpec successUriSpec = mock(WebClient.RequestHeadersUriSpec.class);
+        WebClient.RequestHeadersSpec successHeaderSpec = mock(WebClient.RequestHeadersSpec.class);
+        WebClient.ResponseSpec successResponseSpec = mock(WebClient.ResponseSpec.class);
 
-        wireMockServer.stubFor(get(urlMatching("/questions/123.*"))
-                .willReturn(aResponse()
-                        .withStatus(503)
-                        .withHeader("Content-Type", "application/json")
-                        .withBody("{\"message\": \"Service Unavailable\"}")));
+        when(successWebClient.get()).thenReturn(successUriSpec);
+        when(successUriSpec.uri(any(Function.class))).thenReturn(successHeaderSpec);
+        when(successHeaderSpec.retrieve()).thenReturn(successResponseSpec);
 
-        Mono<List<QuestionResponse>> response = stackOverflowClient.fetchQuestionsInfo(List.of("123"));
+        List<String> ids = List.of("789");
 
-        StepVerifier.create(response)
-                .expectNextMatches(questions -> questions.isEmpty()) // Ожидаем пустой список из fallback
+        QuestionResponse question = new QuestionResponse();
+        QuestionsApiResponse apiResponse = new QuestionsApiResponse();
+        apiResponse.setItems(List.of(question));
+
+        when(successResponseSpec.bodyToMono(QuestionsApiResponse.class)).thenReturn(Mono.just(apiResponse));
+
+        StackOverflowClientImpl successClient =
+                new StackOverflowClientImpl(successWebClient, resilienceUtils, CircuitBreakerRegistry.ofDefaults());
+
+        StepVerifier.create(successClient.fetchQuestionsInfo(ids))
+                .expectNext(List.of(question))
                 .verifyComplete();
 
-        wireMockServer
-                .findAll(getRequestedFor(urlMatching("/questions/123.*")))
-                .forEach(req -> System.out.println("Request: " + req));
-        wireMockServer.verify(exactly(4), getRequestedFor(urlMatching("/questions/123.*"))); // Исправлено на 4
+        verify(successResponseSpec, times(1)).bodyToMono(QuestionsApiResponse.class);
+    }
+
+    @Test
+    void shouldUseCacheForRepeatedRequests() {
+        WebClient cacheWebClient = mock(WebClient.class);
+        WebClient.RequestHeadersUriSpec cacheUriSpec = mock(WebClient.RequestHeadersUriSpec.class);
+        WebClient.RequestHeadersSpec cacheHeaderSpec = mock(WebClient.RequestHeadersSpec.class);
+        WebClient.ResponseSpec cacheResponseSpec = mock(WebClient.ResponseSpec.class);
+
+        when(cacheWebClient.get()).thenReturn(cacheUriSpec);
+        when(cacheUriSpec.uri(any(Function.class))).thenReturn(cacheHeaderSpec);
+        when(cacheHeaderSpec.retrieve()).thenReturn(cacheResponseSpec);
+
+        List<String> ids = List.of("cached");
+
+        QuestionResponse question = new QuestionResponse();
+        QuestionsApiResponse apiResponse = new QuestionsApiResponse();
+        apiResponse.setItems(List.of(question));
+
+        when(cacheResponseSpec.bodyToMono(QuestionsApiResponse.class)).thenReturn(Mono.just(apiResponse));
+
+        StackOverflowClientImpl cacheClient =
+                new StackOverflowClientImpl(cacheWebClient, resilienceUtils, CircuitBreakerRegistry.ofDefaults());
+
+        StepVerifier.create(cacheClient.fetchQuestionsInfo(ids))
+                .expectNext(List.of(question))
+                .verifyComplete();
+
+        StepVerifier.create(cacheClient.fetchQuestionsInfo(ids))
+                .expectNext(List.of(question))
+                .verifyComplete();
+
+        verify(cacheResponseSpec, times(1)).bodyToMono(QuestionsApiResponse.class);
     }
 }

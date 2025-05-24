@@ -8,41 +8,41 @@ import io.github.resilience4j.reactor.circuitbreaker.operator.CircuitBreakerOper
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Qualifier;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClient;
 import org.springframework.web.reactive.function.client.WebClientResponseException;
 import reactor.core.publisher.Mono;
-import reactor.util.retry.Retry;
 
 @Service
 public class BotApiClient {
     private static final Logger log = LoggerFactory.getLogger(BotApiClient.class);
     private final WebClient webClient;
-    private final Retry retrySpec;
+    private final ResilienceUtils resilienceUtils;
     private final CircuitBreaker circuitBreaker;
 
     public BotApiClient(
             @Qualifier("botWebClient") WebClient webClient,
-            @Value("${retry.max-attempts:3}") int maxAttempts,
-            @Value("${retry.first-backoff-seconds:1}") long backoffSeconds,
+            ResilienceUtils resilienceUtils,
             @Qualifier("circuitBreakerRegistry") CircuitBreakerRegistry circuitBreakerRegistry) {
         this.webClient = webClient;
-        this.retrySpec = ResilienceUtils.createRetrySpec(maxAttempts, backoffSeconds, log, "Bot API");
+        this.resilienceUtils = resilienceUtils;
         this.circuitBreaker = circuitBreakerRegistry.circuitBreaker("botApiClient");
     }
 
     public Mono<Void> postUpdate(LinkUpdateRequest update) {
-        return webClient
+        Mono<Void> responseMono = webClient
                 .post()
                 .uri("/updates")
                 .contentType(MediaType.APPLICATION_JSON)
                 .bodyValue(update)
                 .retrieve()
                 .toBodilessEntity()
+                .then();
+
+        return resilienceUtils
+                .decorateWithRetry(responseMono, log, "Bot API")
                 .transformDeferred(CircuitBreakerOperator.of(circuitBreaker))
-                .retryWhen(retrySpec)
                 .doOnError(error -> log.error("Error posting update: {}", error.getMessage()))
                 .onErrorResume(throwable -> {
                     if (throwable instanceof CallNotPermittedException
@@ -55,10 +55,13 @@ public class BotApiClient {
                                 "API error for update: status code {}, response body: {}",
                                 ex.getStatusCode(),
                                 ex.getResponseBodyAsString());
+                        // Добавляем fallback для 503
+                        if (ex.getStatusCode().value() == 503) {
+                            return Mono.empty();
+                        }
                     }
                     return Mono.error(throwable);
-                })
-                .then();
+                });
     }
 
     public CircuitBreaker getCircuitBreaker() {

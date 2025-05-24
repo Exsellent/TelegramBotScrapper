@@ -14,13 +14,10 @@ import java.util.concurrent.ConcurrentHashMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Qualifier;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClient;
-import org.springframework.web.reactive.function.client.WebClientResponseException;
 import reactor.core.publisher.Mono;
 import reactor.core.scheduler.Schedulers;
-import reactor.util.retry.Retry;
 
 @Service
 public class StackOverflowClientImpl implements StackOverflowClient {
@@ -34,16 +31,15 @@ public class StackOverflowClientImpl implements StackOverflowClient {
     private final ConcurrentHashMap<String, Mono<List<AnswerResponse>>> answersCache = new ConcurrentHashMap<>();
 
     private final WebClient webClient;
-    private final Retry retrySpec;
+    private final ResilienceUtils resilienceUtils;
     private final CircuitBreaker circuitBreaker;
 
     public StackOverflowClientImpl(
             @Qualifier("stackOverflowWebClient") WebClient webClient,
-            @Value("${retry.max-attempts:3}") int maxAttempts,
-            @Value("${retry.first-backoff-seconds:1}") long backoffSeconds,
+            ResilienceUtils resilienceUtils,
             @Qualifier("circuitBreakerRegistry") CircuitBreakerRegistry circuitBreakerRegistry) {
         this.webClient = webClient;
-        this.retrySpec = ResilienceUtils.createRetrySpec(maxAttempts, backoffSeconds, LOGGER, "StackOverflow");
+        this.resilienceUtils = resilienceUtils;
         this.circuitBreaker = circuitBreakerRegistry.circuitBreaker("stackOverflowClient");
     }
 
@@ -53,7 +49,7 @@ public class StackOverflowClientImpl implements StackOverflowClient {
         return questionsCache.computeIfAbsent(ids, key -> {
             LOGGER.debug("Fetching questions info for IDs: {}", ids);
 
-            return webClient
+            Mono<List<QuestionResponse>> responseMono = webClient
                     .get()
                     .uri(uriBuilder -> uriBuilder
                             .path("/questions/{ids}")
@@ -62,8 +58,10 @@ public class StackOverflowClientImpl implements StackOverflowClient {
                             .build(ids))
                     .retrieve()
                     .bodyToMono(QuestionsApiResponse.class)
-                    .map(QuestionsApiResponse::getItems)
-                    .retryWhen(retrySpec)
+                    .map(QuestionsApiResponse::getItems);
+
+            return resilienceUtils
+                    .decorateWithRetry(responseMono, LOGGER, "StackOverflow")
                     .transformDeferred(CircuitBreakerOperator.of(circuitBreaker))
                     .publishOn(Schedulers.boundedElastic())
                     .doOnSuccess(questions -> LOGGER.debug("Successfully fetched questions: {}", ids))
@@ -73,14 +71,6 @@ public class StackOverflowClientImpl implements StackOverflowClient {
                                 || throwable instanceof CallNotPermittedException) {
                             LOGGER.error("Fallback: Failed to fetch questions {}: {}", ids, throwable.getMessage());
                             return Mono.just(List.of());
-                        }
-                        if (throwable instanceof WebClientResponseException ex) {
-                            LOGGER.error(
-                                    "API error for questions {}: status code {}, response body: {}",
-                                    ids,
-                                    ex.getStatusCode(),
-                                    ex.getResponseBodyAsString());
-                            return Mono.error(new RuntimeException(API_ERROR + ": " + ex.getStatusCode(), ex));
                         }
                         return Mono.error(throwable);
                     })
@@ -95,7 +85,7 @@ public class StackOverflowClientImpl implements StackOverflowClient {
         return answersCache.computeIfAbsent(joinedQuestionIds, ids -> {
             LOGGER.debug("Fetching answers info for question IDs: {}", ids);
 
-            return webClient
+            Mono<List<AnswerResponse>> responseMono = webClient
                     .get()
                     .uri(uriBuilder -> uriBuilder
                             .path("/questions/{ids}/answers")
@@ -104,8 +94,10 @@ public class StackOverflowClientImpl implements StackOverflowClient {
                     .retrieve()
                     .bodyToMono(AnswersApiResponse.class)
                     .map(AnswersApiResponse::getItems)
-                    .switchIfEmpty(Mono.just(List.of()))
-                    .retryWhen(retrySpec)
+                    .switchIfEmpty(Mono.just(List.of()));
+
+            return resilienceUtils
+                    .decorateWithRetry(responseMono, LOGGER, "StackOverflow")
                     .transformDeferred(CircuitBreakerOperator.of(circuitBreaker))
                     .publishOn(Schedulers.boundedElastic())
                     .doOnSuccess(items -> LOGGER.debug("Successfully fetched {} answers for {}", items.size(), ids))
@@ -115,14 +107,6 @@ public class StackOverflowClientImpl implements StackOverflowClient {
                                 || throwable instanceof CallNotPermittedException) {
                             LOGGER.error("Fallback: Failed to fetch answers {}: {}", ids, throwable.getMessage());
                             return Mono.just(List.of());
-                        }
-                        if (throwable instanceof WebClientResponseException ex) {
-                            LOGGER.error(
-                                    "API error for answers {}: status code {}, response body: {}",
-                                    ids,
-                                    ex.getStatusCode(),
-                                    ex.getResponseBodyAsString());
-                            return Mono.error(new RuntimeException(API_ERROR + ": " + ex.getStatusCode(), ex));
                         }
                         return Mono.error(throwable);
                     })

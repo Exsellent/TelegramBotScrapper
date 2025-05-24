@@ -7,6 +7,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import backend.academy.scrapper.configuration.RateLimitingConfig;
 import backend.academy.scrapper.controller.TestController;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.micrometer.core.instrument.MeterRegistry;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import jakarta.servlet.Filter;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -98,6 +100,11 @@ class RateLimitingIntegrationTest {
         @Bean
         public ObjectMapper objectMapper() {
             return new ObjectMapper();
+        }
+
+        @Bean
+        public MeterRegistry meterRegistry() {
+            return new SimpleMeterRegistry();
         }
 
         // Регистрируем фильтр явно как FilterRegistrationBean

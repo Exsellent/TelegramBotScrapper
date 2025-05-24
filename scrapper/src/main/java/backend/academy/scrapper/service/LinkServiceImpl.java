@@ -5,10 +5,11 @@ import backend.academy.scrapper.domain.Tag;
 import backend.academy.scrapper.dto.LinkDTO;
 import backend.academy.scrapper.repository.repository.LinkRepository;
 import backend.academy.scrapper.repository.repository.TagRepository;
+import io.micrometer.core.instrument.MeterRegistry;
 import java.time.LocalDateTime;
 import java.util.Collection;
+import java.util.List;
 import java.util.Optional;
-import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Collectors;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -22,12 +23,22 @@ public class LinkServiceImpl implements LinkService {
 
     private final LinkRepository linkRepository;
     private final TagRepository tagRepository;
-    private final AtomicLong idGenerator = new AtomicLong(1);
+    private final MeterRegistry meterRegistry;
+    private final GitHubService gitHubService; // Добавлено
+    private final StackOverflowService stackOverflowService; // Добавлено
 
     @Autowired
-    public LinkServiceImpl(LinkRepository linkRepository, TagRepository tagRepository) {
+    public LinkServiceImpl(
+            LinkRepository linkRepository,
+            TagRepository tagRepository,
+            MeterRegistry meterRegistry,
+            GitHubService gitHubService,
+            StackOverflowService stackOverflowService) {
         this.linkRepository = linkRepository;
         this.tagRepository = tagRepository;
+        this.meterRegistry = meterRegistry;
+        this.gitHubService = gitHubService;
+        this.stackOverflowService = stackOverflowService;
     }
 
     @Override
@@ -35,7 +46,7 @@ public class LinkServiceImpl implements LinkService {
         Link link = new Link();
         link.setUrl(url);
         link = linkRepository.save(link);
-
+        registerActiveLinksMetrics();
         return LinkDTO.builder()
                 .linkId(link.getId())
                 .url(link.getUrl())
@@ -48,7 +59,10 @@ public class LinkServiceImpl implements LinkService {
     @Override
     public void remove(String url) {
         Optional<Link> link = linkRepository.findByUrl(url);
-        link.ifPresent(linkRepository::delete);
+        link.ifPresent(l -> {
+            linkRepository.delete(l);
+            registerActiveLinksMetrics();
+        });
     }
 
     @Override
@@ -140,5 +154,37 @@ public class LinkServiceImpl implements LinkService {
                         .tags(link.getTags().stream().map(Tag::getName).collect(Collectors.toList()))
                         .build())
                 .collect(Collectors.toList());
+    }
+
+    @Override
+    public void registerActiveLinksMetrics() {
+        List<Link> links = linkRepository.findAll();
+        long githubCount = links.stream()
+                .filter(link -> link.getUrl().contains("github.com"))
+                .count();
+        meterRegistry.gauge(
+                "scrapper.links.active", List.of(io.micrometer.core.instrument.Tag.of("type", "github")), githubCount);
+
+        long stackoverflowCount = links.stream()
+                .filter(link -> link.getUrl().contains("stackoverflow.com"))
+                .count();
+        meterRegistry.gauge(
+                "scrapper.links.active",
+                List.of(io.micrometer.core.instrument.Tag.of("type", "stackoverflow")),
+                stackoverflowCount);
+    }
+
+    @Override
+    public void checkLinkUpdates() {
+        LocalDateTime sinceTime = LocalDateTime.now().minusMinutes(5);
+        Collection<LinkDTO> links = findLinksToCheck(sinceTime, 0, 100);
+        for (LinkDTO link : links) {
+            String url = link.getUrl();
+            if (url.contains("github.com")) {
+                gitHubService.fetchUpdates(url);
+            } else if (url.contains("stackoverflow.com")) {
+                stackOverflowService.fetchUpdates(url);
+            }
+        }
     }
 }

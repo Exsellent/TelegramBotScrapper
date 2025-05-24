@@ -17,6 +17,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import backend.academy.bot.client.ScrapperApiClient;
 import backend.academy.bot.dto.AddLinkRequest;
 import backend.academy.bot.dto.ListLinksResponse;
+import backend.academy.bot.exception.ApiException;
 import com.github.tomakehurst.wiremock.WireMockServer;
 import com.github.tomakehurst.wiremock.core.WireMockConfiguration;
 import io.github.resilience4j.circuitbreaker.CircuitBreaker;
@@ -26,7 +27,12 @@ import java.time.Duration;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.HttpStatusCode;
+import org.springframework.http.MediaType;
 import org.springframework.http.client.SimpleClientHttpRequestFactory;
+import org.springframework.retry.support.RetryTemplate;
+import org.springframework.web.client.RestClient;
 
 public class ScrapperApiClientTest {
     private WireMockServer wireMockServer;
@@ -39,7 +45,34 @@ public class ScrapperApiClientTest {
         wireMockServer.start();
         configureFor("localhost", wireMockServer.port());
 
+        // Настраиваем SimpleClientHttpRequestFactory
         SimpleClientHttpRequestFactory requestFactory = new SimpleClientHttpRequestFactory();
+        requestFactory.setConnectTimeout(5000);
+        requestFactory.setReadTimeout(10000);
+
+        // Создаем RestClient
+        RestClient restClient = RestClient.builder()
+                .requestFactory(requestFactory)
+                .defaultHeader("Content-Type", MediaType.APPLICATION_JSON_VALUE)
+                .defaultStatusHandler(HttpStatusCode::is4xxClientError, (request, response) -> {
+                    if (response.getStatusCode() == HttpStatus.TOO_MANY_REQUESTS) {
+                        throw new ApiException("Rate limit exceeded: " + response.getStatusCode());
+                    }
+                    throw new ApiException("Client error: " + response.getStatusCode());
+                })
+                .defaultStatusHandler(HttpStatusCode::is5xxServerError, (request, response) -> {
+                    throw new ApiException("Server error: " + response.getStatusCode());
+                })
+                .build();
+
+        // Создаем RetryTemplate
+        RetryTemplate retryTemplate = RetryTemplate.builder()
+                .maxAttempts(3)
+                .fixedBackoff(1000)
+                .retryOn(ApiException.class)
+                .build();
+
+        // Настраиваем CircuitBreakerRegistry
         CircuitBreakerConfig circuitBreakerConfig = CircuitBreakerConfig.custom()
                 .slidingWindowType(CircuitBreakerConfig.SlidingWindowType.COUNT_BASED)
                 .slidingWindowSize(10)
@@ -47,12 +80,13 @@ public class ScrapperApiClientTest {
                 .failureRateThreshold(50)
                 .permittedNumberOfCallsInHalfOpenState(3)
                 .waitDurationInOpenState(Duration.ofSeconds(10))
-                .recordExceptions(backend.academy.bot.exception.ApiException.class)
+                .recordExceptions(ApiException.class)
                 .build();
         CircuitBreakerRegistry circuitBreakerRegistry = CircuitBreakerRegistry.of(circuitBreakerConfig);
 
+        // Создаем ScrapperApiClient с новым конструктором
         scrapperApiClient = new ScrapperApiClient(
-                "http://localhost:" + wireMockServer.port(), requestFactory, 3, 1, circuitBreakerRegistry);
+                restClient, "http://localhost:" + wireMockServer.port(), retryTemplate, circuitBreakerRegistry);
     }
 
     @AfterEach
@@ -130,7 +164,7 @@ public class ScrapperApiClientTest {
         // Выполняем 5 вызовов, ожидаем ApiException
         for (int i = 0; i < 5; i++) {
             assertThrows(
-                    backend.academy.bot.exception.ApiException.class,
+                    ApiException.class,
                     () -> {
                         scrapperApiClient.getAllLinks(123L);
                     },
