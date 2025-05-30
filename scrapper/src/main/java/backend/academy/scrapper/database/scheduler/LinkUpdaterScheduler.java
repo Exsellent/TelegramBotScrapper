@@ -246,9 +246,10 @@ public class LinkUpdaterScheduler {
                     updateMessage,
                     notificationType,
                     chats.stream().map(ChatLinkDTO::getChatId).collect(Collectors.toList()));
-            notificationService.sendNotification(updateRequest);
-            return Mono.just(updateLinkWithTimes(
-                    link, LocalDateTime.now(), OffsetDateTime.now().toLocalDateTime()));
+            return notificationService
+                    .sendNotification(updateRequest)
+                    .then(Mono.just(updateLinkWithTimes(
+                            link, LocalDateTime.now(), OffsetDateTime.now().toLocalDateTime())));
         }
         return Mono.just(updateLinkLastCheck(link, LocalDateTime.now()));
     }

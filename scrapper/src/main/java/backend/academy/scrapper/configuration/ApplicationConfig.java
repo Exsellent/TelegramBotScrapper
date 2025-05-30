@@ -11,6 +11,13 @@ public record ApplicationConfig(
         @NotNull Scheduler scheduler,
         AccessType databaseAccessType,
         String migrationsDir,
-        @NotNull Integer checkIntervalMinutes) {
+        @NotNull Integer checkIntervalMinutes,
+        @NotNull KafkaConfig kafka,
+        String telegramToken,
+        String messageTransport) {
     public record Scheduler(boolean enable, @NotNull Duration interval, @NotNull Duration forceCheckDelay) {}
+
+    public record KafkaConfig(@NotNull Topics topics) {
+        public record Topics(@NotNull String notifications, @NotNull String dlq, @NotNull String linkCommands) {}
+    }
 }

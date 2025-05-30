@@ -1,69 +1,74 @@
 package backend.academy.scrapper.client;
 
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.Mockito.when;
+import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
+import static com.github.tomakehurst.wiremock.client.WireMock.post;
+import static com.github.tomakehurst.wiremock.client.WireMock.urlEqualTo;
 
 import backend.academy.scrapper.dto.LinkUpdateRequest;
+import com.github.tomakehurst.wiremock.WireMockServer;
+import com.github.tomakehurst.wiremock.core.WireMockConfiguration;
+import io.github.resilience4j.circuitbreaker.CircuitBreakerConfig;
+import io.github.resilience4j.circuitbreaker.CircuitBreakerRegistry;
+import java.time.Duration;
+import java.util.Arrays;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.mockito.Mock;
-import org.mockito.MockitoAnnotations;
-import org.springframework.http.MediaType;
 import org.springframework.web.reactive.function.client.WebClient;
-import reactor.core.publisher.Mono;
+import reactor.test.StepVerifier;
 
 class BotApiClientTest {
 
-    @Mock
-    private WebClient.Builder webClientBuilderMock;
-
-    @Mock
-    private WebClient webClientMock;
-
-    @Mock
-    private WebClient.RequestBodyUriSpec requestBodyUriSpecMock;
-
-    @Mock
-    private WebClient.RequestBodySpec requestBodySpecMock;
-
-    @Mock
-    private WebClient.RequestHeadersSpec requestHeadersSpecMock;
-
-    @Mock
-    private WebClient.ResponseSpec responseSpecMock;
-
+    private WireMockServer wireMockServer;
     private BotApiClient botApiClient;
 
     @BeforeEach
     void setUp() {
-        MockitoAnnotations.openMocks(this);
+        wireMockServer =
+                new WireMockServer(WireMockConfiguration.wireMockConfig().dynamicPort());
+        wireMockServer.start();
 
-        // Настраиваем мок WebClient.Builder
-        when(webClientBuilderMock.baseUrl(anyString())).thenReturn(webClientBuilderMock);
-        when(webClientBuilderMock.build()).thenReturn(webClientMock);
+        WebClient webClient = WebClient.builder()
+                .baseUrl("http://localhost:" + wireMockServer.port())
+                .build();
 
-        // Настраиваем цепочку моков для WebClient
-        when(webClientMock.post()).thenReturn(requestBodyUriSpecMock);
-        when(requestBodyUriSpecMock.uri("/updates")).thenReturn(requestBodySpecMock);
-        when(requestBodySpecMock.contentType(MediaType.APPLICATION_JSON)).thenReturn(requestBodySpecMock);
-        when(requestBodySpecMock.bodyValue(any(LinkUpdateRequest.class))).thenReturn(requestHeadersSpecMock);
-        when(requestHeadersSpecMock.retrieve()).thenReturn(responseSpecMock);
-        when(responseSpecMock.toBodilessEntity()).thenReturn(Mono.empty());
+        CircuitBreakerConfig circuitBreakerConfig = CircuitBreakerConfig.custom()
+                .failureRateThreshold(50)
+                .slidingWindowSize(2) // Уменьшаем до 2
+                .minimumNumberOfCalls(2) // Уменьшаем до 2, чтобы CircuitBreaker сработал быстрее
+                .waitDurationInOpenState(Duration.ofSeconds(5))
+                .build();
 
-        // Создаем тестируемый объект с мокнутым WebClient.Builder
-        botApiClient = new BotApiClient(webClientBuilderMock);
+        CircuitBreakerRegistry circuitBreakerRegistry = CircuitBreakerRegistry.of(circuitBreakerConfig);
+
+        ResilienceUtils resilienceUtils = new ResilienceUtils(2, 1L, Arrays.asList(500, 502, 503, 504, 429));
+
+        botApiClient = new BotApiClient(webClient, resilienceUtils, circuitBreakerRegistry);
+    }
+
+    @AfterEach
+    void tearDown() {
+        wireMockServer.stop();
     }
 
     @Test
-    void testPostUpdate() {
-        // Создаем тестовый запрос
-        LinkUpdateRequest linkUpdateRequest = new LinkUpdateRequest();
+    void testCircuitBreakerAndFallback() {
+        wireMockServer.stubFor(
+                post(urlEqualTo("/updates")).willReturn(aResponse().withStatus(503)));
 
-        // Вызываем тестируемый метод
-        Mono<Void> resultMono = botApiClient.postUpdate(linkUpdateRequest);
+        LinkUpdateRequest request = new LinkUpdateRequest();
 
-        // Проверяем, что Mono завершается успешно
-        resultMono.block(); // Блокирующий вызов для проверки успешного завершения
+        // Первая попытка: 2 ретрая, затем fallback
+        StepVerifier.create(botApiClient.postUpdate(request)).verifyComplete();
+
+        // Вторая попытка: CircuitBreaker должен сработать (2 вызова, 50% failure rate)
+        StepVerifier.create(botApiClient.postUpdate(request)).verifyComplete();
+
+        // Третья попытка: CircuitBreaker уже открыт
+        StepVerifier.create(botApiClient.postUpdate(request)).verifyComplete();
+
+        // Проверяем, что CircuitBreaker открыт
+        assert botApiClient.getCircuitBreaker().getState()
+                == io.github.resilience4j.circuitbreaker.CircuitBreaker.State.OPEN;
     }
 }

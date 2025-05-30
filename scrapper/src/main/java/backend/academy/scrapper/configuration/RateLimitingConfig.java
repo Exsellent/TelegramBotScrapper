@@ -6,11 +6,10 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.context.annotation.Configuration;
 
 @Configuration
-@ConfigurationProperties(prefix = "scrapper.rate-limiting")
+@ConfigurationProperties(prefix = "rate-limiting")
 @Getter
 @Setter
-public class RateLimitingProperties {
-    private int capacity;
-    private int tokens;
-    private int refillDuration;
+public class RateLimitingConfig {
+    private int requestLimit;
+    private int windowSeconds;
 }

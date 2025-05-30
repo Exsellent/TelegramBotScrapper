@@ -1,9 +1,14 @@
 package backend.academy.scrapper.scheduler;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
-import static org.mockito.Mockito.*;
+import static org.mockito.Mockito.doNothing;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 import backend.academy.scrapper.configuration.ApplicationConfig;
 import backend.academy.scrapper.database.scheduler.LinkUpdaterScheduler;
@@ -52,8 +57,6 @@ public class LinkUpdaterSchedulerTest {
     @Mock
     private NotificationService notificationService;
 
-    ;
-
     private LinkUpdaterScheduler scheduler;
 
     @BeforeEach
@@ -64,8 +67,7 @@ public class LinkUpdaterSchedulerTest {
         when(schedulerConfig.enable()).thenReturn(true);
         when(schedulerConfig.interval()).thenReturn(Duration.ofMinutes(5));
 
-        scheduler = new LinkUpdaterScheduler(
-                linkService, chatLinkService, gitHubService, null, notificationService, 5); // Заменили botApiClient
+        scheduler = new LinkUpdaterScheduler(linkService, chatLinkService, gitHubService, null, notificationService, 5);
     }
 
     @Test
@@ -110,19 +112,17 @@ public class LinkUpdaterSchedulerTest {
 
         when(gitHubService.getPullRequestInfo("owner", "repo", 123)).thenReturn(Mono.just(prInfo));
 
-        doNothing()
-                .when(notificationService)
-                .sendNotification(any(LinkUpdateRequest.class)); // Заменили botApiClient.postUpdate
+        when(notificationService.sendNotification(any(LinkUpdateRequest.class))).thenReturn(Mono.empty());
 
         // Act
         scheduler.update();
 
         // Assert
         verify(gitHubService, times(1)).getPullRequestInfo("owner", "repo", 123);
-        verify(notificationService, times(1)).sendNotification(any(LinkUpdateRequest.class)); // Заменили botApiClient
+        verify(notificationService, times(1)).sendNotification(any(LinkUpdateRequest.class));
 
         ArgumentCaptor<LinkUpdateRequest> captor = ArgumentCaptor.forClass(LinkUpdateRequest.class);
-        verify(notificationService).sendNotification(captor.capture()); // Заменили botApiClient
+        verify(notificationService).sendNotification(captor.capture());
         assertNotNull(captor.getValue().getDescription());
     }
 
@@ -170,7 +170,7 @@ public class LinkUpdaterSchedulerTest {
         when(gitHubService.getPullRequestInfo("owner", "repo", 456)).thenReturn(Mono.just(prInfo));
 
         ArgumentCaptor<LinkUpdateRequest> captor = ArgumentCaptor.forClass(LinkUpdateRequest.class);
-        doNothing().when(notificationService).sendNotification(captor.capture()); // Заменили botApiClient.postUpdate
+        when(notificationService.sendNotification(captor.capture())).thenReturn(Mono.empty());
 
         // Act
         scheduler.update();

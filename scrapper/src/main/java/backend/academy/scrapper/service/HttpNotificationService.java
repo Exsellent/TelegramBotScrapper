@@ -5,6 +5,7 @@ import backend.academy.scrapper.dto.LinkUpdateRequest;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Service;
+import reactor.core.publisher.Mono;
 
 @Service
 @ConditionalOnProperty(name = "app.message-transport", havingValue = "HTTP")
@@ -17,7 +18,7 @@ public class HttpNotificationService implements NotificationService {
     }
 
     @Override
-    public void sendNotification(LinkUpdateRequest update) {
-        botApiClient.postUpdate(update);
+    public Mono<Void> sendNotification(LinkUpdateRequest update) {
+        return botApiClient.postUpdate(update);
     }
 }
