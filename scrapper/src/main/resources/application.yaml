@@ -102,8 +102,10 @@ resilience4j:
         minimumNumberOfCalls: 5
         failureRateThreshold: 50
         permittedNumberOfCallsInHalfOpenState: 3
-        waitDurationInOpenState: 10s
-
+  retry:
+        maxAttempts: 3
+        waitDuration: 1s
+        retryable-status-codes: [500, 502, 503, 504]
 bot:
   api:
     baseurl: ${BOT_API_BASEURL:http://bot:8080}
@@ -132,4 +134,5 @@ logging:
     org.springframework.boot.actuate: DEBUG
     org.springframework.data.redis: DEBUG
     root: DEBUG
+
     io.micrometer.prometheus: DEBUG  # для отладки метрик

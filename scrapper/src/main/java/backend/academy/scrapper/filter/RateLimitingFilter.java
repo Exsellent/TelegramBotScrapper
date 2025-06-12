@@ -76,7 +76,11 @@ public class RateLimitingFilter extends OncePerRequestFilter {
         // Проверяем, не превышен ли лимит запросов
         if (currentCount > config.getRequestLimit()) {
             LOGGER.warn("Rate limit exceeded for client: {}", finalClientId);
+
             response.setStatus(HttpStatus.TOO_MANY_REQUESTS.value()); // Исправлено с 429
+
+            response.setStatus(429);
+
             response.setHeader("Retry-After", String.valueOf(config.getWindowSeconds()));
             response.setContentType("application/json");
             String errorResponse = objectMapper.writeValueAsString(Map.of(

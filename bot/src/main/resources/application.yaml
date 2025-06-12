@@ -1,7 +1,7 @@
 app:
   telegram-token: ${APP_TELEGRAM_TOKEN}
   batch:
-    notification-cron: "0 0 10 * * ?"  #  для уведомлений
+    notification-cron: "0 0 10 * * ?"  # для уведомлений
 scrapper:
   api:
     base-url: ${SCRAPPER_API_BASE_URL:http://scrapper:8081/api}
@@ -66,11 +66,11 @@ rate-limiting:
 
 conversation:
   timeout:
-    minutes: 15  #  для сессий
+    minutes: 15  # для сессий
 
 management:
   server:
-    port: 8082  #  отдельный порт для Actuator
+    port: 8082  # отдельный порт для Actuator
   endpoints:
     web:
       base-path: /actuator
