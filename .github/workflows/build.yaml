@@ -24,7 +24,16 @@ jobs:
           distribution: 'temurin'
       - name: maven build
         run: mvn verify
-
+      - name: Upload bot JAR
+        uses: actions/upload-artifact@v4
+        with:
+          name: bot-jar
+          path: bot/target/link-tracker-bot.jar
+      - name: Upload scrapper JAR
+        uses: actions/upload-artifact@v4
+        with:
+          name: scrapper-jar
+          path: scrapper/target/scrapper.jar
       - id: jacoco
         uses: madrapps/jacoco-report@v1.7.1
         if: ( github.event_name != 'workflow_dispatch' )
@@ -54,3 +63,54 @@ jobs:
           java-version: '23'
           distribution: 'temurin'
       - run: mvn compile -am spotless:check modernizer:modernizer spotbugs:check pmd:check pmd:cpd-check
+
+  docker-build:
+    needs: [ build, linter ]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    env:
+      BOT_IMAGE_NAME: ghcr.io/stacenko63/bot
+      SCRAPPER_IMAGE_NAME: ghcr.io/stacenko63/scrapper
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          java-version: '23'
+          distribution: 'temurin'
+          cache: maven
+
+      - name: Download bot JAR
+        uses: actions/download-artifact@v4
+        with:
+          name: bot-jar
+          path: bot/target
+
+      - name: Download scrapper JAR
+        uses: actions/download-artifact@v4
+        with:
+          name: scrapper-jar
+          path: scrapper/target
+
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push bot image
+        run: |
+          docker build -t ${BOT_IMAGE_NAME}:latest -f bot.Dockerfile .
+          docker push ${BOT_IMAGE_NAME}:latest
+
+      - name: Build and push scrapper image
+        run: |
+          docker build -t ${SCRAPPER_IMAGE_NAME}:latest -f scrapper.Dockerfile .
+          docker push ${

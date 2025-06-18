@@ -1,33 +1,27 @@
 package backend.academy.scrapper.service;
 
 import static org.mockito.ArgumentMatchers.anyList;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import backend.academy.scrapper.client.stackoverflow.StackOverflowClient;
-import backend.academy.scrapper.dto.AnswerResponse;
-import backend.academy.scrapper.dto.CombinedStackOverflowInfo;
-import backend.academy.scrapper.dto.QuestionResponse;
-import backend.academy.scrapper.dto.User;
+import backend.academy.scrapper.dto.*;
+import io.micrometer.core.instrument.MeterRegistry;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import java.time.OffsetDateTime;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
-import org.mockito.Mock;
-import org.mockito.junit.jupiter.MockitoExtension;
 import reactor.core.publisher.Mono;
 import reactor.test.StepVerifier;
 
-@ExtendWith(MockitoExtension.class)
 public class StackOverflowServiceTest {
 
-    @Mock
     private StackOverflowClient stackOverflowClient;
-
-    @InjectMocks
+    private ChatService chatService;
+    private MeterRegistry meterRegistry;
     private StackOverflowService stackOverflowService;
 
     private QuestionResponse mockQuestionResponse;
@@ -35,6 +29,12 @@ public class StackOverflowServiceTest {
 
     @BeforeEach
     public void setup() {
+        stackOverflowClient = mock(StackOverflowClient.class);
+        chatService = mock(ChatService.class);
+        meterRegistry = new SimpleMeterRegistry();
+
+        stackOverflowService = new StackOverflowService(stackOverflowClient, chatService, meterRegistry);
+
         OffsetDateTime now = OffsetDateTime.now();
 
         mockQuestionResponse = new QuestionResponse(
@@ -44,6 +44,7 @@ public class StackOverflowServiceTest {
                 2L, now.minusDays(1), now.minusDays(1), 1L, new User(null, "testUser1", null, null), "Answer body 1");
         AnswerResponse mockAnswerResponse2 =
                 new AnswerResponse(3L, now, now, 1L, new User(null, "testUser2", null, null), "Answer body 2");
+
         mockAnswers = List.of(mockAnswerResponse1, mockAnswerResponse2);
     }
 
@@ -103,8 +104,7 @@ public class StackOverflowServiceTest {
                 .thenReturn(Mono.just(Collections.singletonList(mockQuestionResponse)));
         when(stackOverflowClient.fetchAnswersInfo(anyList())).thenReturn(Mono.just(mockAnswers));
 
-        String questionId = "1";
-        Mono<CombinedStackOverflowInfo> result = stackOverflowService.getCombinedInfo(questionId);
+        Mono<CombinedStackOverflowInfo> result = stackOverflowService.getCombinedInfo("1");
 
         StepVerifier.create(result)
                 .expectNextMatches(combinedInfo -> {
@@ -114,10 +114,8 @@ public class StackOverflowServiceTest {
                     return question.getQuestionId().equals(1L)
                             && question.getTitle().equals("Test Question")
                             && answers.size() == 2
-                            && answers.stream()
-                                    .anyMatch(answer -> answer.getAnswerId().equals(2L))
-                            && answers.stream()
-                                    .anyMatch(answer -> answer.getAnswerId().equals(3L));
+                            && answers.stream().anyMatch(a -> a.getAnswerId().equals(2L))
+                            && answers.stream().anyMatch(a -> a.getAnswerId().equals(3L));
                 })
                 .verifyComplete();
     }

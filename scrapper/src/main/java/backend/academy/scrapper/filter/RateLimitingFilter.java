@@ -2,6 +2,7 @@ package backend.academy.scrapper.filter;
 
 import backend.academy.scrapper.configuration.RateLimitingConfig;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.micrometer.core.instrument.MeterRegistry;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -13,6 +14,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.core.annotation.Order;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
@@ -22,11 +24,13 @@ public class RateLimitingFilter extends OncePerRequestFilter {
     private static final Logger LOGGER = LoggerFactory.getLogger(RateLimitingFilter.class);
     private final ObjectMapper objectMapper;
     private final RateLimitingConfig config;
+    private final MeterRegistry meterRegistry;
     private final Map<String, RequestCount> requestCounts = new ConcurrentHashMap<>();
 
-    public RateLimitingFilter(ObjectMapper objectMapper, RateLimitingConfig config) {
+    public RateLimitingFilter(ObjectMapper objectMapper, RateLimitingConfig config, MeterRegistry meterRegistry) {
         this.objectMapper = objectMapper;
         this.config = config;
+        this.meterRegistry = meterRegistry;
     }
 
     @Override
@@ -41,18 +45,23 @@ public class RateLimitingFilter extends OncePerRequestFilter {
         LOGGER.debug("Processing request for {}", request.getRequestURI());
         LOGGER.debug("Client ID: {}", clientId);
 
+        // Увеличиваем счетчик запросов
+        meterRegistry
+                .counter("scrapper.api.requests", "endpoint", request.getRequestURI())
+                .increment();
+
         // Защита от изменений clientId в процессе обработки
         final String finalClientId = clientId;
 
-        // Получаем или создаем счетчик для клиента
+        // счетчик для клиента
         RequestCount requestCount = requestCounts.computeIfAbsent(finalClientId, k -> new RequestCount());
 
         long currentTime = System.currentTimeMillis();
         int currentCount;
 
-        // Пытаемся получить текущий счетчик с защитой от гонок
+        //  текущий счетчик с защитой от гонок
         synchronized (requestCount) {
-            // Если временное окно истекло, сбрасываем счетчик
+            // Если временное окно истекло, сброс счетчика
             if (currentTime - requestCount.getStartTime() > config.getWindowSeconds() * 1000L) {
                 LOGGER.debug("Resetting request count for client {} as window has expired", finalClientId);
                 requestCount.reset(currentTime);
@@ -67,15 +76,18 @@ public class RateLimitingFilter extends OncePerRequestFilter {
         // Проверяем, не превышен ли лимит запросов
         if (currentCount > config.getRequestLimit()) {
             LOGGER.warn("Rate limit exceeded for client: {}", finalClientId);
+
+            response.setStatus(HttpStatus.TOO_MANY_REQUESTS.value()); // Исправлено с 429
+
             response.setStatus(429);
+
             response.setHeader("Retry-After", String.valueOf(config.getWindowSeconds()));
             response.setContentType("application/json");
             String errorResponse = objectMapper.writeValueAsString(Map.of(
-                    "code", "429",
+                    "code", String.valueOf(HttpStatus.TOO_MANY_REQUESTS.value()),
                     "exceptionName", "RateLimitExceeded",
                     "description", "Too many requests"));
             response.getWriter().write(errorResponse);
-            // Завершаем обработку запроса
             return;
         }
 

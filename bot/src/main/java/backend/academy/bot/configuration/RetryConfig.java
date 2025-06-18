@@ -42,6 +42,7 @@ public class RetryConfig {
 
     @Bean
     public RestClient restClient(SimpleClientHttpRequestFactory retryRequestFactory) {
+
         return RestClient.builder()
                 .requestFactory(retryRequestFactory)
                 .defaultHeader("Content-Type", MediaType.APPLICATION_JSON_VALUE)
